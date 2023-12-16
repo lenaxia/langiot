@@ -17,8 +17,8 @@ from digitalio import DigitalInOut
 from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
 
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
-os.environ['SDL_AUDIODRIVER'] = 'dummy'
-os.environ['TESTMODE'] = 'True'
+#os.environ['SDL_AUDIODRIVER'] = 'dummy'
+os.environ['TESTMODE'] = 'False'
 
 # Declare read_thread as a global variable
 read_thread = None
