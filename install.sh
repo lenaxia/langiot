@@ -2,7 +2,7 @@
 
 # Configuration Variables
 YOUR_APP_NAME="langiot"
-REPO_URL="https://github.com/yourusername/your-repo.git"
+REPO_URL="https://github.com/lenaxia/langiot.git"
 APP_DIR="/home/pi/$YOUR_APP_NAME"
 CONFIG_DIR="/etc/$YOUR_APP_NAME"
 LOG_FILE="/var/log/$YOUR_APP_NAME-install.log"
