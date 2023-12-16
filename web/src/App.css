@@ -1,0 +1,185 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Global Styles */
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f4f4f4;
+  color: #333;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+#root {
+  max-width: 100%;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+button {
+  background-color: #3654Af;
+  color: white;
+  padding: 10px 20px;
+  margin: 10px 2px;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+button:hover {
+  background-color: #4549F0;
+}
+
+input[type="text"], select, textarea {
+  padding: 6px 10px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+input {
+  width: 60%;
+}
+
+select {
+  width: 25%;
+}
+
+/* Media Queries for Mobile Devices */
+@media (max-width: 768px) {
+  input[type="text"], select, textarea {
+    width: 90%; /* Slightly smaller width for mobile */
+  }
+
+  select {
+    width: 90%;
+  }
+
+  .container > select, .container > input {
+    margin-right: 0;
+    margin-bottom: 10px; /* Stack vertically */
+  }
+
+  .addLanguage, .input-group, .config-form {
+    text-align: center;
+  }
+
+  .config-form input[type="text"] {
+    width: 90%;
+  }
+}
+
+
+.container {
+  margin-bottom: 20px;
+}
+
+.container > select, .container > input {
+  margin-right: 10px;
+}
+
+
+.addLanguage {
+  text-align: right;
+  width: 90%;
+}
+
+.info-box {
+    background-color: #e6f4ff; /* Light blue background */
+    border: 1px solid #b3d4fc; /* Slightly darker blue border */
+    border-radius: 5px; /* Rounded corners */
+    padding: 10px 15px; /* Padding inside the box */
+    margin: 10px 0; /* Margin around the box */
+    display: flex; /* To align icon with text */
+    align-items: center; /* Align items vertically */
+}
+
+.info-box-icon {
+    color: #007bff; /* Blue color for the icon */
+    font-size: 24px; /* Size of the icon */
+    margin-right: 10px; /* Space between icon and text */
+    flex-shrink: 0;
+}
+
+.info-box p {
+    margin: 10px 0px;
+    color: #333; /* Dark text for readability */
+    text-align: left;
+}
+
+.error-message {
+    background-color: #ffe6f4; /* Light blue background */
+    color: #ff0000;
+    border: 1px solid #b3d4fc; /* Slightly darker blue border */
+    border-radius: 5px; /* Rounded corners */
+    padding: 10px 15px; /* Padding inside the box */
+    margin: 10px 0; /* Margin around the box */
+    display: flex; /* To align icon with text */
+    align-items: center; /* Align items vertically */
+}
+
+.config-form {
+  margin-top: 20px;
+  padding: 10px;
+  border-top: 1px solid #ccc;
+}
+
+.config-form input[type="text"] {
+  margin: 5px 0;
+  width: 70%;
+}
+
+.config-form button {
+  margin-top: 10px;
+}
+
+.input-group {
+  margin-bottom: 10px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+

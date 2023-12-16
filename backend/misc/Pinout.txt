@@ -1,0 +1,15 @@
+| Raspberry Pi Pin (GPIO) | PCM5102 DAC Pin | PN532 NFC/RFID Pin |
+|-------------------------|-----------------|--------------------|
+| 5V (Pin 2 or 4)         | VIN             | VCC                |
+| Ground (e.g., Pin 6)    | GND             | GND, SS            |
+| GPIO10 (MOSI, Pin 19)   | -               | -                  |
+| GPIO9 (MISO, Pin 21)    | -               | -                  |
+| GPIO11 (SCLK, Pin 23)   | -               | -                  |
+| GPIO8 (CE0, Pin 24)     | -               | -                  |
+| GPIO18 (Pin 12)         | BCK             | -                  |
+| GPIO19 (Pin 35)         | LCK             | -                  |
+| GPIO21 (Pin 40)         | DIN             | -                  |
+| GPIO2 (SDA1, Pin 3)     | -               | SDA (I2C)          |
+| GPIO3 (SCL1, Pin 5)     | -               | SCL (I2C)          |
+| Any GPIO (optional)     | -               | IRQ (optional)     |
+| Any GPIO (optional)     | -               | RSTPDN (optional)  |
