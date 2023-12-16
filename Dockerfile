@@ -69,4 +69,6 @@ USER appuser
 EXPOSE 80
 
 # Run app.py when the container launches
-CMD ["flask", "run", "--host=0.0.0.0", "--port=80"]
+#CMD ["flask", "run", "--host=0.0.0.0", "--port=80"]
+# Start Gunicorn with the Flask app
+CMD ["gunicorn", "--workers", "3", "--bind", "0.0.0.0:80", "langiot"]
