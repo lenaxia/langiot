@@ -20,19 +20,34 @@ log_message "Starting installation script..."
 
 # Update and install dependencies
 log_message "Updating system and installing dependencies..."
-sudo apt-get update && sudo apt-get install -y git python3 python3-pip nodejs npm gcc libglib2.0-0
+sudo apt-get update && sudo apt-get install -y git nodejs npm gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 if [ $? -ne 0 ]; then
     log_message "Failed to install required packages."
     exit 1
 fi
 
-# Check Python version
-PYTHON_VERSION=$(python3 --version | cut -d " " -f 2)
-PYTHON_REQUIRED="3.9"
-if [[ "$PYTHON_VERSION" < "$PYTHON_REQUIRED" ]]; then
-    log_message "Python version $PYTHON_VERSION is not sufficient. Required version is $PYTHON_REQUIRED or higher."
+# Install pyenv for Python version management
+log_message "Installing pyenv..."
+curl https://pyenv.run | bash
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
+if [ $? -ne 0 ]; then
+    log_message "Failed to install pyenv."
     exit 1
 fi
+
+# Check Python version and install new version if needed
+PYTHON_REQUIRED="3.9.0"
+pyenv install -s $PYTHON_REQUIRED
+pyenv global $PYTHON_REQUIRED
+if [ $? -ne 0 ]; then
+    log_message "Failed to install Python $PYTHON_REQUIRED."
+    exit 1
+fi
+
+# Reload shell
+exec "$SHELL"
 
 # Check Node.js version
 NODE_VERSION=$(node --version | cut -d "v" -f 2)
