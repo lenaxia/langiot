@@ -47,7 +47,7 @@ body {
 }
 
 #root {
-  max-width: 100%;
+  max-width: 768px;
   margin: 20px auto;
   padding: 20px;
   background-color: white;

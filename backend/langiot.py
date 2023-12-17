@@ -155,8 +155,8 @@ def load_configuration():
 
     config.read(CONFIG_FILE_PATH)
 
-    SERVER_NAME = config['DEFAULT'].get('ServerName', "https://lang.thekao.cloud/generate-speech")
-    API_TOKEN = config['DEFAULT'].get('ApiToken', "test123")
+    SERVER_NAME = config['DEFAULT'].get('ServerName', '')
+    API_TOKEN = config['DEFAULT'].get('ApiToken', '')
     HEADERS = {
         "Content-Type": "application/json",
         "Authorization": API_TOKEN
