@@ -20,6 +20,14 @@ from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit
 #os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['TESTMODE'] = 'False'
 
+# Set default values for environment variables
+DEFAULT_CONFIG_PATH = '/config/config.ini'
+DEFAULT_WEB_APP_PATH = '/app/web'
+
+# Use environment variables if they are set, otherwise use the default values
+CONFIG_FILE_PATH = os.getenv('CONFIG_FILE_PATH', DEFAULT_CONFIG_PATH)
+WEB_APP_PATH = os.getenv('WEB_APP_PATH', DEFAULT_WEB_APP_PATH)
+
 # Declare read_thread as a global variable
 read_thread = None
 config = configparser.ConfigParser()
@@ -29,13 +37,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger()
 
 # Flask application setup
-app = Flask(__name__, static_folder='/app/web/static')
+app = Flask(__name__, static_folder=os.path.join(WEB_APP_PATH, 'static'))
 CORS(app)
+
+logger.info(f"Config File: {CONFIG_FILE_PATH}")
+logger.info(f"Web App Path: {WEB_APP_PATH}")
 
 # Initialize audio
 pygame.init()
 pygame.mixer.init()
-
+logger.info("Pygame initialized")
 # Define threading event
 read_pause_event = threading.Event()
 
@@ -51,10 +62,11 @@ class MockPN532:
 
 # Initialize the PN532 NFC reader
 def init_nfc_reader():
-    if os.environ['TESTMODE']:
+    if os.environ['TESTMODE'] == 'True':
       logger.info("Initializing NFC Reader (Mock Implementation)")
       return MockPN532()
 
+    logger.info("Initializing NFC Reader")
     i2c = busio.I2C(board.SCL, board.SDA)
     reset_pin = DigitalInOut(board.D6)  # Adjust as per your connection
     pn532 = PN532_I2C(i2c, reset=reset_pin)
@@ -82,7 +94,7 @@ def health_check():
         return jsonify({"status": "unhealthy", "details": str(e)}), 500
 
 # Route for static files
-react_build_directory = os.path.abspath("/app/web")
+react_build_directory = os.path.abspath(WEB_APP_PATH)
 
 @app.route('/<filename>')
 def serve_admin_root_files(filename):
@@ -141,8 +153,7 @@ def update_config():
 def load_configuration():
     global SERVER_NAME, API_TOKEN, HEADERS
 
-    config_path = '/config/config.ini'
-    config.read(config_path)
+    config.read(CONFIG_FILE_PATH)
 
     SERVER_NAME = config['DEFAULT'].get('ServerName', "https://lang.thekao.cloud/generate-speech")
     API_TOKEN = config['DEFAULT'].get('ApiToken', "test123")
@@ -152,7 +163,6 @@ def load_configuration():
     }
 
 def update_configuration(new_config):
-    config_path = '/config/config.ini'
     try:
         # Update with new values
         if 'ServerName' in new_config:
@@ -161,7 +171,7 @@ def update_configuration(new_config):
             config['DEFAULT']['ApiToken'] = new_config['ApiToken']
 
         # Write changes back to the config file
-        with open(config_path, 'w') as configfile:
+        with open(CONFIG_FILE_PATH, 'w') as configfile:
             config.write(configfile)
 
         # Reload configuration
@@ -176,7 +186,7 @@ def update_configuration(new_config):
 def handle_write_request(json_str):
     read_pause_event.set()  # Pause the read loop
     time.sleep(1)  # Allow time for read loop to pause
-    write_nfc(json_str, pn532)  # Perform the write operation
+    write_nfc(pn532, json_str)  # Perform the write operation
     read_pause_event.clear()  # Resume the read loop
 
 def is_valid_json(json_str):
@@ -206,17 +216,26 @@ def perform_http_request(data):
         return None
 
 def play_audio(audio_data):
+    def audio_playback_thread(audio_data):
+        try:
+            logger.info("Loading audio data into stream.")
+            audio_stream = io.BytesIO(audio_data)
+            pygame.mixer.music.load(audio_stream)
+            logger.info("Audio data loaded, starting playback.")
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                time.sleep(1)
+            logger.info("Audio playback finished.")
+        except Exception as e:
+            logger.error(f"Error playing audio: {e}")
     try:
-        logger.info("Loading audio data into stream.")
-        audio_stream = io.BytesIO(audio_data)
-        pygame.mixer.music.load(audio_stream)
-        logger.info("Audio data loaded, starting playback.")
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            time.sleep(1)
-        logger.info("Audio playback finished.")
+        playback_thread = threading.Thread(target=audio_playback_thread, args=(audio_data,))
+        playback_thread.start()
+        logger.info("Audio playback thread started.")
     except Exception as e:
-        logger.error(f"Error playing audio: {e}")
+        logger.error(f"Error creating audio playback thread: {e}")
+
+
 
 
 def is_valid_schema(data, schema_section):
@@ -283,15 +302,12 @@ def is_valid_json(json_str):
         return False
 
 def write_nfc(pn532, json_str, start_page=4):
-    # Check if the string is valid JSON
-    try:
-        json.loads(json_str)
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON string")
-        return
-
     # Convert string to bytes
     byte_data = json_str.encode()
+
+    # Prepend the length of byte_data using 2 bytes
+    length_bytes = len(byte_data).to_bytes(2, 'big')  # 2 bytes for up to 65535
+    byte_data = length_bytes + byte_data
 
     # Define the page size (typically 4 bytes for NFC tags)
     page_size = 4
@@ -312,21 +328,24 @@ def write_nfc(pn532, json_str, start_page=4):
             chunk += b'\x00'
 
         # Write the chunk to the tag
-        if not isinstance(page, int) or not (0 <= page <= 134):
-            logger.error("Invalid page number for NFC tag write operation.")
-            return
-        if not isinstance(chunk, (list, tuple)) or len(chunk) != 4 or not all(isinstance(x, int) and 0 <= x < 256 for x in chunk):
-            logger.error("Data must be a list or tuple of 4 bytes.")
-            return
-
-        try:
-            pn532.ntag2xx_write_block(page, list(chunk))
-            logger.info(f"Data written to NFC tag at page {page}")
-        except Exception as e:
-            logger.error(f"Error writing to NFC tag: {e}")
-            return
+        write_to_nfc_tag(pn532, page, list(chunk))
 
     logger.info("JSON string written to NFC tag")
+
+
+def write_to_nfc_tag(pn532, page, data):
+    if not isinstance(page, int) or not (0 <= page <= 134):
+        logger.error("Invalid page number for NFC tag write operation.")
+        return
+    if not isinstance(data, (list, tuple)) or len(data) != 4 or not all(isinstance(x, int) and 0 <= x < 256 for x in data):
+        logger.error("Data must be a list or tuple of 4 bytes.")
+        return
+
+    try:
+        pn532.ntag2xx_write_block(page, data)
+        logger.info(f"Data written to NFC tag at page {page}")
+    except Exception as e:
+        logger.error(f"Error writing to NFC tag: {e}")
 
 
 def read_tag_memory(pn532, start_page=4):
@@ -368,6 +387,7 @@ def check_for_nfc_tag(pn532):
 
 # Main function for NFC tag reading loop
 def main():
+    global read_thread 
     last_uid = None
     logger.info("Script started, waiting for NFC tag.")
 
@@ -399,25 +419,29 @@ def main():
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
 
-    try:
-        while True:
-            # Main thread can handle other tasks
-            time.sleep(1)
-    except KeyboardInterrupt:
-        read_thread.join()
-
-
 def signal_handler(sig, frame):
-    logger.info("Gracefully shutting down")
-    read_pause_event.set()  # Ensure the read thread exits
-    read_thread.join()  # Wait for the read thread to finish
+    global read_thread 
+    logger.info(f"Signal handler called with signal: {sig}")
+
+    if read_thread is not None:
+        logger.info("Joining the read thread...")
+        read_thread.join()
+        logger.info("Read thread joined successfully.")
+    else:
+        logger.info("No read thread to join.")
+
+    logger.info("Quitting Pygame...")
     pygame.quit()
+    logger.info("Pygame quit successfully.")
+
+    logger.info("Exiting system...")
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 load_configuration()
+main()
 
 def run_flask_app():
     app.run(host='0.0.0.0', port=5000)
