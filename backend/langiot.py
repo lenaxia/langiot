@@ -1,6 +1,7 @@
 import requests
 import time
 import pygame # pip install pygame
+import numpy as np
 import json
 import io
 import os
@@ -187,6 +188,8 @@ def handle_write_request(json_str):
     read_pause_event.set()  # Pause the read loop
     time.sleep(1)  # Allow time for read loop to pause
     write_nfc(pn532, json_str)  # Perform the write operation
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+    beep_sound.play()
     read_pause_event.clear()  # Resume the read loop
 
 def is_valid_json(json_str):
@@ -235,8 +238,20 @@ def play_audio(audio_data):
     except Exception as e:
         logger.error(f"Error creating audio playback thread: {e}")
 
+def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+    wave = np.sin(2 * np.pi * frequency * t)
+    wave = (volume * wave * 32767).astype(np.int16)  # Convert to 16-bit format
 
+    # Create a stereo sound (2 channels)
+    stereo_wave = np.vstack((wave, wave)).T  # Duplicate the wave for left and right channels
 
+    # Ensure the array is C-contiguous
+    if not stereo_wave.flags['C_CONTIGUOUS']:
+        stereo_wave = np.ascontiguousarray(stereo_wave)
+
+    sound = pygame.sndarray.make_sound(stereo_wave)
+    return sound
 
 def is_valid_schema(data, schema_section):
     if not config.has_section(schema_section):
@@ -401,6 +416,8 @@ def main():
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
                     logger.info("Tag memory read, processing data.")
+                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+                    beep_sound.play()
 
                     if full_memory:
                         parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))

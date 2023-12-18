@@ -7,3 +7,4 @@ Adafruit-CircuitPython-PN532
 requests
 Flask-Cors
 gunicorn
+numpy
