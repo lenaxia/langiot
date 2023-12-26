@@ -2,12 +2,12 @@
 
 # Configuration Variables
 USER="yin"
-YOUR_APP_NAME="langiot"
+APP_NAME="langiot"
 REPO_URL="https://github.com/lenaxia/langiot.git"
-APP_DIR="/home/$USER/$YOUR_APP_NAME"
-CONFIG_DIR="/etc/$YOUR_APP_NAME"
-LOG_FILE="/home/$USER/$YOUR_APP_NAME-install.log"
-SERVICE_FILE="/etc/systemd/system/$YOUR_APP_NAME.service"
+APP_DIR="/home/$USER/$APP_NAME"
+CONFIG_DIR="/etc/$APP_NAME"
+LOG_FILE="/home/$USER/$APP_NAME-install.log"
+SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
 
 # Function to log messages
 log_message() {
@@ -72,6 +72,32 @@ if [[ "${NODE_VERSION%%.*}" -lt "$NODE_REQUIRED" ]]; then
     exit 1
 fi
 
+log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry DAC audio..."
+
+# Backup the original config.txt file
+sudo cp /boot/config.txt /boot/config.txt.bak
+
+# Enable I2C
+sudo sed -i 's/#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' /boot/config.txt
+
+# Enable I2S
+sudo sed -i 's/#dtparam=i2s=on/dtparam=i2s=on/' /boot/config.txt
+
+# Enable API
+sudo sed -i 's/#dtparam=spi=on/dtparam=spi=on/' /boot/config.txt
+
+# Set up HiFiBerry DAC (Max98357 compatible)
+echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
+
+# Disable onboard audio (to avoid conflicts)
+sudo sed -i 's/dtparam=audio=on/#dtparam=audio=on/' /boot/config.txt
+
+if [ $? -ne 0 ]; then
+    log_message "Failed to configure Raspberry Pi settings."
+    exit 1
+fi
+
+
 # Clone the repository
 log_message "Cloning repository..."
 if [ -d "$APP_DIR" ]; then
@@ -91,7 +117,6 @@ if [ $? -ne 0 ]; then
     log_message "Failed to clone the repository."
     exit 1
 fi
-
 
 # Build the React application
 log_message "Building React application..."
@@ -159,10 +184,15 @@ fi
 
 # Enable and start the service
 log_message "Enabling and starting the service..."
-sudo systemctl enable $YOUR_APP_NAME.service && sudo systemctl start $YOUR_APP_NAME.service
+sudo systemctl enable $APP_NAME.service && sudo systemctl start $APP_NAME.service
 if [ $? -ne 0 ]; then
     log_message "Failed to enable or start the service."
     exit 1
 fi
 
-log_message "Installation of $YOUR_APP_NAME completed successfully."
+log_message "Installation of $APP_NAME completed successfully."
+
+# Reboot to apply changes
+log_message "Rebooting to apply changes..."
+sudo reboot
+
