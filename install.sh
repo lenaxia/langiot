@@ -118,6 +118,34 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Set up a cron job for weekly updates
+# We want this to be smart enough to not add duplicate contab entries
+log_message "Setting up a weekly cron job for repository updates..."
+
+# Define the cron job command
+CRON_JOB_COMMAND="cd $APP_DIR && git pull > /dev/null 2>&1"
+
+# Export existing crontab to a temporary file
+TEMP_CRONTAB=$(mktemp)
+crontab -l > "$TEMP_CRONTAB" 2>/dev/null
+
+# Check if a similar cron job already exists
+if grep -Fq "$CRON_JOB_COMMAND" "$TEMP_CRONTAB"; then
+    log_message "A similar cron job for weekly updates already exists. No changes made."
+else
+    # Add the new cron job if it doesn't exist
+    echo "0 2 * * 1 $CRON_JOB_COMMAND" >> "$TEMP_CRONTAB"
+    crontab "$TEMP_CRONTAB"
+    if [ $? -ne 0 ]; then
+        log_message "Failed to set up the cron job."
+        rm "$TEMP_CRONTAB"
+        exit 1
+    fi
+    log_message "Cron job for weekly updates set up successfully."
+fi
+# Clean up
+rm "$TEMP_CRONTAB"
+
 # Build the React application
 log_message "Building React application..."
 cd "$APP_DIR/web" && npm install && npm run build 2>&1 | tee -a "$LOG_FILE"
