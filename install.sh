@@ -45,28 +45,34 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Install pyenv for Python version management
-log_message "Installing pyenv..."
-curl https://pyenv.run | bash
-export PATH="$HOME/.pyenv/bin:$PATH"
-eval "$(pyenv init --path)"
-eval "$(pyenv init -)"
-if [ $? -ne 0 ]; then
-    log_message "Failed to install pyenv."
-    exit 1
+# Check if pyenv is installed and functional
+if command -v pyenv >/dev/null; then
+    log_message "pyenv is already installed."
+else
+    log_message "Installing pyenv..."
+    curl https://pyenv.run | bash
+
+    # Update PATH and initialize pyenv in the current script session
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init --path)"
+    eval "$(pyenv init -)"
 fi
 
 # Check Python version and install new version if needed
 PYTHON_REQUIRED="3.9.0"
-pyenv install -s $PYTHON_REQUIRED
-pyenv global $PYTHON_REQUIRED
-if [ $? -ne 0 ]; then
-    log_message "Failed to install Python $PYTHON_REQUIRED."
-    exit 1
+if pyenv versions | grep -q "$PYTHON_REQUIRED"; then
+    log_message "Python $PYTHON_REQUIRED is already installed."
+else
+    log_message "Installing Python $PYTHON_REQUIRED..."
+    pyenv install $PYTHON_REQUIRED
+    if [ $? -ne 0 ]; then
+        log_message "Failed to install Python $PYTHON_REQUIRED."
+        exit 1
+    fi
 fi
 
-# Reload shell
-exec "$SHELL"
+pyenv global $PYTHON_REQUIRED
 
 
 # Check Node.js version
