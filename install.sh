@@ -26,16 +26,6 @@ touch "$LOG_FILE"
 sudo mkdir /home/$USER/.xdg
 sudo chown $USER:$USER /home/$USER/.xdg
 
-# Check if pyenv is already installed
-if [ -d "$HOME/.pyenv" ]; then
-    log_message "WARNING: '/home/yin/.pyenv' directory already exists. Removing it to proceed with the installation."
-    rm -rf "$HOME/.pyenv"
-    if [ $? -ne 0 ]; then
-        log_message "Failed to remove existing '.pyenv' directory. Please remove it manually and re-run the script."
-        exit 1
-    fi
-fi
-
 # Update and install dependencies
 log_message "Updating system and installing dependencies..."
 sudo apt-get update && sudo apt-get install -y git nodejs npm gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
