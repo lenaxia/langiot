@@ -8,6 +8,11 @@ APP_DIR="/home/$USER/$APP_NAME"
 CONFIG_DIR="/etc/$APP_NAME"
 LOG_FILE="/home/$USER/$APP_NAME-install.log"
 SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
+AVAHISERVICEFILE="/etc/avahi/services/$APP_NAME.service"
+PORT=8080
+S3_URL="https://s3.amazonaws.com/mybucket/myicon.png"
+DESCRIPTION="This is the web frontend to manage the LangClient"
+
 
 # Function to log messages
 log_message() {
@@ -77,16 +82,10 @@ log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry D
 # Backup the original config.txt file
 sudo cp /boot/config.txt /boot/config.txt.bak
 
-# Enable I2C
+# Enable I2C, I2S and SPI, and HiFiBerry DAC
 sudo sed -i 's/#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' /boot/config.txt
-
-# Enable I2S
 sudo sed -i 's/#dtparam=i2s=on/dtparam=i2s=on/' /boot/config.txt
-
-# Enable API
 sudo sed -i 's/#dtparam=spi=on/dtparam=spi=on/' /boot/config.txt
-
-# Set up HiFiBerry DAC (Max98357 compatible)
 echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
 
 # Disable onboard audio (to avoid conflicts)
@@ -96,6 +95,45 @@ if [ $? -ne 0 ]; then
     log_message "Failed to configure Raspberry Pi settings."
     exit 1
 fi
+
+log_message "Installing and configuring Avahi for mDNS..."
+
+# Install Avahi daemon
+sudo apt-get install -y avahi-daemon
+if [ $? -ne 0 ]; then
+    log_message "Failed to install Avahi daemon."
+    exit 1
+fi
+
+# Create and configure Avahi service file
+sudo tee "$AVAHISERVICEFILE" > /dev/null << EOF
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h - My Custom Service</name>
+  <service>
+    <type>_$APP_NAME._tcp</type>
+    <port>$PORT</port>
+    <txt-record>appname=$APP_NAME</txt-record>
+    <txt-record>description=$DESCRIPTION</txt-record>
+    <txt-record>icon_url=$S3_URL</txt-record>
+  </service>
+</service-group>
+EOF
+
+if [ $? -ne 0 ]; then
+    log_message "Failed to create Avahi service file."
+    exit 1
+fi
+
+# Restart Avahi daemon to apply changes
+sudo systemctl restart avahi-daemon
+if [ $? -ne 0 ]; then
+    log_message "Failed to restart Avahi daemon."
+    exit 1
+fi
+
+log_message "Avahi mDNS configuration complete."
 
 
 # Clone the repository
@@ -123,7 +161,7 @@ fi
 log_message "Setting up a weekly cron job for repository updates..."
 
 # Define the cron job command
-CRON_JOB_COMMAND="cd $APP_DIR && git pull > /dev/null 2>&1"
+CRON_JOB_COMMAND="cd $APP_DIR && git pull && bash install.sh > /dev/null 2>&1"
 
 # Export existing crontab to a temporary file
 TEMP_CRONTAB=$(mktemp)
