@@ -5,7 +5,8 @@ USER="yin"
 APP_NAME="langiot"
 REPO_URL="https://github.com/lenaxia/langiot.git"
 APP_DIR="/home/$USER/$APP_NAME"
-CONFIG_DIR="/etc/$APP_NAME"
+CONFIG_DIR="/home/$USER"
+CONFIG_FILE="$APP_NAME.conf"
 LOG_FILE="/home/$USER/$APP_NAME-install.log"
 SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
 AVAHISERVICEFILE="/etc/avahi/services/$APP_NAME.service"
@@ -210,7 +211,9 @@ deactivate
 
 # Create config directory and copy config file
 log_message "Setting up configuration..."
-sudo mkdir -p "$CONFIG_DIR" && sudo cp "$APP_DIR/backend/config.ini" "$CONFIG_DIR"
+sudo mkdir -p "$CONFIG_DIR" && sudo cp "$APP_DIR/backend/config.ini" "$CONFIG_DIR/$CONFIG_FILE"
+sudo chown $USER:$USER $CONFIG_DIR/$CONFIG_FILE
+chmod 644 $CONFIG_DIR/$CONFIG_FILE
 if [ $? -ne 0 ]; then
     log_message "Failed to set up configuration."
     exit 1
@@ -230,7 +233,7 @@ Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
 Environment="XDG_RUNTIME_DIR=/home/$USER/.xdg"
 Environment="WEB_APP_PATH=$APP_DIR/backend/web"
-Environment="CONFIG_PATH=$CONFIG_DIR/config.ini"
+Environment="CONFIG_FILE_PATH=$CONFIG_DIR/$CONFIG_FILE"
 ExecStart=$APP_DIR/backend/venv/bin/gunicorn --workers 1 --bind 0.0.0.0:8080 'langiot:app'
 Restart=on-failure
 RestartSec=5s

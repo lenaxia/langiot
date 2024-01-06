@@ -154,14 +154,23 @@ def update_config():
 def load_configuration():
     global SERVER_NAME, API_TOKEN, HEADERS
 
-    config.read(CONFIG_FILE_PATH)
+    try:
+        config.read(CONFIG_FILE_PATH)
 
-    SERVER_NAME = config['DEFAULT'].get('ServerName', '')
-    API_TOKEN = config['DEFAULT'].get('ApiToken', '')
-    HEADERS = {
-        "Content-Type": "application/json",
-        "Authorization": API_TOKEN
-    }
+        SERVER_NAME = config['DEFAULT'].get('ServerName', '')
+        API_TOKEN = config['DEFAULT'].get('ApiToken', '')
+        HEADERS = {
+            "Content-Type": "application/json",
+            "Authorization": API_TOKEN
+        }
+
+        # Logging the loaded configuration details
+        logging.info(f"Configuration loaded successfully. Server Name: {SERVER_NAME}")
+
+    except Exception as e:
+        logging.error(f"Error loading configuration: {e}")
+
+
 
 def update_configuration(new_config):
     try:
@@ -178,7 +187,7 @@ def update_configuration(new_config):
         # Reload configuration
         load_configuration()
 
-        return {"message": "Configuration updated successfully"}
+        return {"server": "{SERVER_NAME}", "token": "{API_TOKEN}"}
     except Exception as e:
         logger.error(f"Failed to update configuration: {e}")
         return {"error": str(e)}
