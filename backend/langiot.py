@@ -217,7 +217,7 @@ def perform_http_request(data):
             content = data
             logger.info(f"Using provided data as content: {content}")
 
-        logger.info(f"Sending data to server: {content}")
+        logger.info(f"Sending data to server: {content} {SERVER_NAME} {HEADERS}")
         response = requests.post(SERVER_NAME, headers=HEADERS, json=content, timeout=10, stream=True)
         logger.info(f"Response status code: {response.status_code}")
         response.raise_for_status()
