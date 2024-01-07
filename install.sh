@@ -201,6 +201,7 @@ cd "$APP_DIR/backend"
 python3 -m venv venv
 source venv/bin/activate
 pip3 install --no-cache-dir -r requirements.txt
+pip3 install RPi.GPIO
 if [ $? -ne 0 ]; then
     log_message "Failed to install Python dependencies."
     exit 1

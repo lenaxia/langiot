@@ -3,7 +3,6 @@ Werkzeug==2.0.2
 requests==2.26.0
 pygame==2.1.0
 Adafruit-Blinka
-RPi.GPIO
 Adafruit-CircuitPython-PN532
 Flask-Cors
 gunicorn

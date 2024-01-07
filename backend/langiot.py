@@ -17,9 +17,16 @@ from flask_cors import CORS
 from digitalio import DigitalInOut
 from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
-#os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['TESTMODE'] = 'False'
+if os.environ['TESTMODE'] == 'True':
+    os.environ['SDL_AUDIODRIVER'] = 'dummy'
+    logger.info("Using dummy audio driver")
+
 
 # Set default values for environment variables
 DEFAULT_CONFIG_PATH = '/config/config.ini'
@@ -32,10 +39,6 @@ WEB_APP_PATH = os.getenv('WEB_APP_PATH', DEFAULT_WEB_APP_PATH)
 # Declare read_thread as a global variable
 read_thread = None
 config = configparser.ConfigParser()
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
 
 # Flask application setup
 app = Flask(__name__, static_folder=os.path.join(WEB_APP_PATH, 'static'))
@@ -55,9 +58,36 @@ class MockPN532:
     def __init__(self):
         self.uid = "MockUID1234"
 
+        self.mock_data = {
+            4: b'\\x00D{"',
+            5: b'text',
+            6: b'": "',
+            7: b'hors',
+            8: b'e", ',
+            9: b'"lan',
+            10: b'guag',
+            11: b'e": ',
+            12: b'"en"',
+            13: b', "t',
+            14: b'rans',
+            15: b'lati',
+            16: b'ons"',
+            17: b': ["',
+            18: b'zh-T',
+            19: b'W", ',
+            20: b'"ja"',
+            21: b']}\\x00\\x00'
+        }
+
     def read_passive_target(self, timeout=0.5):
         # Simulate reading an NFC tag
         return self.uid
+
+    def ntag2xx_read_block(self, page):
+        # Simulate reading a block of data from the NFC tag
+        # You can return predefined data or generate random data for each page
+        return self.mock_data.get(page, b'\x00\x00\x00\x00')
+
 
     # Add other methods as needed for your script
 
@@ -113,11 +143,15 @@ def serve_admin(path):
 def perform_http_request_endpoint():
     data = request.json
     result = perform_http_request(data)
+    # Create a BytesIO object from the result
+    byte_io = io.BytesIO(result)
+
+    # Use the send_file function correctly
     return send_file(
-        io.BytesIO(result),
+        byte_io,
         mimetype="audio/mpeg",
         as_attachment=True,
-        attachment_filename="audio.mp3"
+        download_name="audio.mp3"  # Corrected from 'attachment_filename' to 'download_name'
     )
 
 @app.route('/play_audio', methods=['POST'])
@@ -187,7 +221,7 @@ def update_configuration(new_config):
         # Reload configuration
         load_configuration()
 
-        return {"server": "{SERVER_NAME}", "token": "{API_TOKEN}"}
+        return {"server": SERVER_NAME, "token": API_TOKEN} 
     except Exception as e:
         logger.error(f"Failed to update configuration: {e}")
         return {"error": str(e)}
@@ -217,7 +251,7 @@ def perform_http_request(data):
             content = data
             logger.info(f"Using provided data as content: {content}")
 
-        logger.info(f"Sending data to server: {content} {SERVER_NAME} {HEADERS}")
+        logger.info(f"Sending data to server: {SERVER_NAME} {HEADERS} {content} ")
         response = requests.post(SERVER_NAME, headers=HEADERS, json=content, timeout=10, stream=True)
         logger.info(f"Response status code: {response.status_code}")
         response.raise_for_status()
