@@ -1,12 +1,14 @@
 import requests
 import time
-import pygame # pip install pygame
 import numpy as np
 import json
 import io
 import os
 import signal
 import sys
+from pydub import AudioSegment
+import simpleaudio as sa
+import io
 import board
 import busio
 import logging
@@ -27,7 +29,7 @@ if os.environ['TESTMODE'] == 'True':
     os.environ['SDL_AUDIODRIVER'] = 'dummy'
     logger.info("Using dummy audio driver")
 else:
-    os.environ['SDL_AUDIODRIVER'] = 'alsa'
+    os.environ['SDL_AUDIODRIVER'] = 'dsp'
     logger.info("Using real audio driver")
 
 # Set default values for environment variables
@@ -152,8 +154,7 @@ def perform_http_request_endpoint():
     return send_file(
         byte_io,
         mimetype="audio/mpeg",
-        as_attachment=True,
-        download_name="audio.mp3"  # Corrected from 'attachment_filename' to 'download_name'
+        as_attachment=True
     )
 
 @app.route('/play_audio', methods=['POST'])
@@ -265,14 +266,24 @@ def perform_http_request(data):
 
 def play_audio(audio_data):
     try:
-        logger.info("Loading audio data into stream.")
+        logger.info("Converting audio data to playable format.")
+
+        # Convert the binary data to an audio segment
         audio_stream = io.BytesIO(audio_data)
-        pygame.mixer.music.load(audio_stream)
+        audio_segment = AudioSegment.from_file(audio_stream, format="mp3")
+
+        # Play the audio
+        play_obj = sa.play_buffer(
+            audio_segment.raw_data,
+            num_channels=audio_segment.channels,
+            bytes_per_sample=audio_segment.sample_width,
+            sample_rate=audio_segment.frame_rate
+        )
+
         logger.info("Audio data loaded, starting playback.")
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            time.sleep(1)
+        play_obj.wait_done()  # Wait until sound has finished playing
         logger.info("Audio playback finished.")
+        
     except Exception as e:
         logger.error(f"Error playing audio: {e}")
 
