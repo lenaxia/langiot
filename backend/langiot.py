@@ -26,7 +26,9 @@ os.environ['TESTMODE'] = 'False'
 if os.environ['TESTMODE'] == 'True':
     os.environ['SDL_AUDIODRIVER'] = 'dummy'
     logger.info("Using dummy audio driver")
-
+else:
+    os.environ['SDL_AUDIODRIVER'] = 'alsa'
+    logger.info("Using real audio driver")
 
 # Set default values for environment variables
 DEFAULT_CONFIG_PATH = '/config/config.ini'
@@ -262,24 +264,17 @@ def perform_http_request(data):
         return None
 
 def play_audio(audio_data):
-    def audio_playback_thread(audio_data):
-        try:
-            logger.info("Loading audio data into stream.")
-            audio_stream = io.BytesIO(audio_data)
-            pygame.mixer.music.load(audio_stream)
-            logger.info("Audio data loaded, starting playback.")
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                time.sleep(1)
-            logger.info("Audio playback finished.")
-        except Exception as e:
-            logger.error(f"Error playing audio: {e}")
     try:
-        playback_thread = threading.Thread(target=audio_playback_thread, args=(audio_data,))
-        playback_thread.start()
-        logger.info("Audio playback thread started.")
+        logger.info("Loading audio data into stream.")
+        audio_stream = io.BytesIO(audio_data)
+        pygame.mixer.music.load(audio_stream)
+        logger.info("Audio data loaded, starting playback.")
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(1)
+        logger.info("Audio playback finished.")
     except Exception as e:
-        logger.error(f"Error creating audio playback thread: {e}")
+        logger.error(f"Error playing audio: {e}")
 
 def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
     t = np.linspace(0, duration, int(sample_rate * duration), False)
