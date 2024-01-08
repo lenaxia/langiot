@@ -8,6 +8,7 @@ import signal
 import sys
 from pydub import AudioSegment
 import simpleaudio as sa
+from pydub.generators import Sine
 import io
 import board
 import busio
@@ -51,10 +52,6 @@ CORS(app)
 logger.info(f"Config File: {CONFIG_FILE_PATH}")
 logger.info(f"Web App Path: {WEB_APP_PATH}")
 
-# Initialize audio
-pygame.init()
-pygame.mixer.init()
-logger.info("Pygame initialized")
 # Define threading event
 read_pause_event = threading.Event()
 
@@ -287,20 +284,22 @@ def play_audio(audio_data):
     except Exception as e:
         logger.error(f"Error playing audio: {e}")
 
-def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
-    t = np.linspace(0, duration, int(sample_rate * duration), False)
-    wave = np.sin(2 * np.pi * frequency * t)
-    wave = (volume * wave * 32767).astype(np.int16)  # Convert to 16-bit format
+def generate_beep(frequency=1000, duration=200, volume=0.5, sample_rate=44100):
+    # Generate a sine wave audio segment
+    beep = Sine(frequency).to_audio_segment(duration=duration, volume=volume)
 
-    # Create a stereo sound (2 channels)
-    stereo_wave = np.vstack((wave, wave)).T  # Duplicate the wave for left and right channels
+    # Set frame rate and channels
+    beep = beep.set_frame_rate(sample_rate).set_channels(2)
 
-    # Ensure the array is C-contiguous
-    if not stereo_wave.flags['C_CONTIGUOUS']:
-        stereo_wave = np.ascontiguousarray(stereo_wave)
+    # Export the audio segment to a bytes-like object
+    byte_io = io.BytesIO()
+    beep.export(byte_io, format="wav")
 
-    sound = pygame.sndarray.make_sound(stereo_wave)
-    return sound
+    # Load the byte object into simpleaudio for playback
+    byte_io.seek(0)  # Go to the start of the byte object
+    wave_obj = sa.WaveObject.from_wave_file(byte_io)
+
+    return wave_obj
 
 def is_valid_schema(data, schema_section):
     if not config.has_section(schema_section):
@@ -465,8 +464,9 @@ def main():
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
                     logger.info("Tag memory read, processing data.")
-                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
-                    beep_sound.play()
+                    wave_obj = generate_beep()
+                    play_obj = wave_obj.play()
+                    play_obj.wait_done() 
 
                     if full_memory:
                         parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
