@@ -284,8 +284,9 @@ def play_audio(audio_data):
     except Exception as e:
         logger.error(f"Error playing audio: {e}")
 
-def generate_beep(frequency=1000, duration=200, volume=0.5, sample_rate=44100):
+def generate_beep(frequency=1000, duration=200, volume=-20, sample_rate=44100):
     # Generate a sine wave audio segment
+    # Volume is adjusted to dBFS. -20 dBFS is a safer value to prevent overflow
     beep = Sine(frequency).to_audio_segment(duration=duration, volume=volume)
 
     # Set frame rate and channels
@@ -300,6 +301,7 @@ def generate_beep(frequency=1000, duration=200, volume=0.5, sample_rate=44100):
     wave_obj = sa.WaveObject.from_wave_file(byte_io)
 
     return wave_obj
+
 
 def is_valid_schema(data, schema_section):
     if not config.has_section(schema_section):
@@ -463,7 +465,7 @@ def main():
                     last_uid = nfc_data
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
-                    logger.info("Tag memory read, processing data.")
+                    logger.info(f"Tag memory read, processing: {full_memory}")
                     wave_obj = generate_beep()
                     play_obj = wave_obj.play()
                     play_obj.wait_done() 
