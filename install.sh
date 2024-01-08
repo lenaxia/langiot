@@ -83,7 +83,10 @@ sudo cp /boot/config.txt /boot/config.txt.bak
 sudo sed -i 's/#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' /boot/config.txt
 sudo sed -i 's/#dtparam=i2s=on/dtparam=i2s=on/' /boot/config.txt
 sudo sed -i 's/#dtparam=spi=on/dtparam=spi=on/' /boot/config.txt
-echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
+if ! grep -q "^dtoverlay=hifiberry-dac$" /boot/config.txt; then
+    echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
+fi
+
 
 # Disable onboard audio (to avoid conflicts)
 sudo sed -i 's/dtparam=audio=on/#dtparam=audio=on/' /boot/config.txt
@@ -255,6 +258,24 @@ if [ $? -ne 0 ]; then
     log_message "Failed to enable or start the service."
     exit 1
 fi
+
+log_message "Creating .asoundrc config file for HifiBerry DAC..."
+sudo tee "$CONFIG_DIR/.asoundrc" > /dev/null << EOF
+pcm.!default {
+    type hw
+    card 0
+}
+ctl.!default {
+    type hw
+    card 0
+}
+EOF
+
+if [ $? -ne 0 ]; then
+    log_message "Failed to create ~/.asoundrc config file."
+    exit 1
+fi
+
 
 log_message "Installation of $APP_NAME completed successfully."
 
