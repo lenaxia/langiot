@@ -259,8 +259,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-log_message "Creating .asoundrc config file for HifiBerry DAC..."
-sudo tee "$CONFIG_DIR/.asoundrc" > /dev/null << EOF
+log_message "Creating asound.conf config file for HifiBerry DAC..."
+sudo tee "/etc/asound.conf" > /dev/null << EOF
 pcm.!default {
     type hw
     card 0

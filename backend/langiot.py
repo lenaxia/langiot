@@ -1,15 +1,12 @@
 import requests
 import time
+import pygame # pip install pygame
 import numpy as np
 import json
 import io
 import os
 import signal
 import sys
-from pydub import AudioSegment
-import simpleaudio as sa
-from pydub.generators import Sine
-import io
 import board
 import busio
 import logging
@@ -20,18 +17,9 @@ from flask_cors import CORS
 from digitalio import DigitalInOut
 from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
-
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
+#os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['TESTMODE'] = 'False'
-if os.environ['TESTMODE'] == 'True':
-    os.environ['SDL_AUDIODRIVER'] = 'dummy'
-    logger.info("Using dummy audio driver")
-else:
-    os.environ['SDL_AUDIODRIVER'] = 'dsp'
-    logger.info("Using real audio driver")
 
 # Set default values for environment variables
 DEFAULT_CONFIG_PATH = '/config/config.ini'
@@ -45,6 +33,10 @@ WEB_APP_PATH = os.getenv('WEB_APP_PATH', DEFAULT_WEB_APP_PATH)
 read_thread = None
 config = configparser.ConfigParser()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+
 # Flask application setup
 app = Flask(__name__, static_folder=os.path.join(WEB_APP_PATH, 'static'))
 CORS(app)
@@ -52,6 +44,10 @@ CORS(app)
 logger.info(f"Config File: {CONFIG_FILE_PATH}")
 logger.info(f"Web App Path: {WEB_APP_PATH}")
 
+# Initialize audio
+pygame.init()
+pygame.mixer.init()
+logger.info("Pygame initialized")
 # Define threading event
 read_pause_event = threading.Event()
 
@@ -59,36 +55,9 @@ class MockPN532:
     def __init__(self):
         self.uid = "MockUID1234"
 
-        self.mock_data = {
-            4: b'\\x00D{"',
-            5: b'text',
-            6: b'": "',
-            7: b'hors',
-            8: b'e", ',
-            9: b'"lan',
-            10: b'guag',
-            11: b'e": ',
-            12: b'"en"',
-            13: b', "t',
-            14: b'rans',
-            15: b'lati',
-            16: b'ons"',
-            17: b': ["',
-            18: b'zh-T',
-            19: b'W", ',
-            20: b'"ja"',
-            21: b']}\\x00\\x00'
-        }
-
     def read_passive_target(self, timeout=0.5):
         # Simulate reading an NFC tag
         return self.uid
-
-    def ntag2xx_read_block(self, page):
-        # Simulate reading a block of data from the NFC tag
-        # You can return predefined data or generate random data for each page
-        return self.mock_data.get(page, b'\x00\x00\x00\x00')
-
 
     # Add other methods as needed for your script
 
@@ -144,14 +113,11 @@ def serve_admin(path):
 def perform_http_request_endpoint():
     data = request.json
     result = perform_http_request(data)
-    # Create a BytesIO object from the result
-    byte_io = io.BytesIO(result)
-
-    # Use the send_file function correctly
     return send_file(
-        byte_io,
+        io.BytesIO(result),
         mimetype="audio/mpeg",
-        as_attachment=True
+        as_attachment=True,
+        attachment_filename="audio.mp3"
     )
 
 @app.route('/play_audio', methods=['POST'])
@@ -188,23 +154,14 @@ def update_config():
 def load_configuration():
     global SERVER_NAME, API_TOKEN, HEADERS
 
-    try:
-        config.read(CONFIG_FILE_PATH)
+    config.read(CONFIG_FILE_PATH)
 
-        SERVER_NAME = config['DEFAULT'].get('ServerName', '')
-        API_TOKEN = config['DEFAULT'].get('ApiToken', '')
-        HEADERS = {
-            "Content-Type": "application/json",
-            "Authorization": API_TOKEN
-        }
-
-        # Logging the loaded configuration details
-        logging.info(f"Configuration loaded successfully. Server Name: {SERVER_NAME}")
-
-    except Exception as e:
-        logging.error(f"Error loading configuration: {e}")
-
-
+    SERVER_NAME = config['DEFAULT'].get('ServerName', '')
+    API_TOKEN = config['DEFAULT'].get('ApiToken', '')
+    HEADERS = {
+        "Content-Type": "application/json",
+        "Authorization": API_TOKEN
+    }
 
 def update_configuration(new_config):
     try:
@@ -221,7 +178,7 @@ def update_configuration(new_config):
         # Reload configuration
         load_configuration()
 
-        return {"server": SERVER_NAME, "token": API_TOKEN} 
+        return {"message": "Configuration updated successfully"}
     except Exception as e:
         logger.error(f"Failed to update configuration: {e}")
         return {"error": str(e)}
@@ -251,7 +208,7 @@ def perform_http_request(data):
             content = data
             logger.info(f"Using provided data as content: {content}")
 
-        logger.info(f"Sending data to server: {SERVER_NAME} {HEADERS} {content} ")
+        logger.info(f"Sending data to server: {content}")
         response = requests.post(SERVER_NAME, headers=HEADERS, json=content, timeout=10, stream=True)
         logger.info(f"Response status code: {response.status_code}")
         response.raise_for_status()
@@ -262,46 +219,39 @@ def perform_http_request(data):
         return None
 
 def play_audio(audio_data):
+    def audio_playback_thread(audio_data):
+        try:
+            logger.info("Loading audio data into stream.")
+            audio_stream = io.BytesIO(audio_data)
+            pygame.mixer.music.load(audio_stream)
+            logger.info("Audio data loaded, starting playback.")
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                time.sleep(1)
+            logger.info("Audio playback finished.")
+        except Exception as e:
+            logger.error(f"Error playing audio: {e}")
     try:
-        logger.info("Converting audio data to playable format.")
-
-        # Convert the binary data to an audio segment
-        audio_stream = io.BytesIO(audio_data)
-        audio_segment = AudioSegment.from_file(audio_stream, format="mp3")
-
-        # Play the audio
-        play_obj = sa.play_buffer(
-            audio_segment.raw_data,
-            num_channels=audio_segment.channels,
-            bytes_per_sample=audio_segment.sample_width,
-            sample_rate=audio_segment.frame_rate
-        )
-
-        logger.info("Audio data loaded, starting playback.")
-        play_obj.wait_done()  # Wait until sound has finished playing
-        logger.info("Audio playback finished.")
-        
+        playback_thread = threading.Thread(target=audio_playback_thread, args=(audio_data,))
+        playback_thread.start()
+        logger.info("Audio playback thread started.")
     except Exception as e:
-        logger.error(f"Error playing audio: {e}")
+        logger.error(f"Error creating audio playback thread: {e}")
 
-def generate_beep(frequency=1000, duration=200, volume=-20, sample_rate=44100):
-    # Generate a sine wave audio segment
-    # Volume is adjusted to dBFS. -20 dBFS is a safer value to prevent overflow
-    beep = Sine(frequency).to_audio_segment(duration=duration, volume=volume)
+def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+    wave = np.sin(2 * np.pi * frequency * t)
+    wave = (volume * wave * 32767).astype(np.int16)  # Convert to 16-bit format
 
-    # Set frame rate and channels
-    beep = beep.set_frame_rate(sample_rate).set_channels(2)
+    # Create a stereo sound (2 channels)
+    stereo_wave = np.vstack((wave, wave)).T  # Duplicate the wave for left and right channels
 
-    # Export the audio segment to a bytes-like object
-    byte_io = io.BytesIO()
-    beep.export(byte_io, format="wav")
+    # Ensure the array is C-contiguous
+    if not stereo_wave.flags['C_CONTIGUOUS']:
+        stereo_wave = np.ascontiguousarray(stereo_wave)
 
-    # Load the byte object into simpleaudio for playback
-    byte_io.seek(0)  # Go to the start of the byte object
-    wave_obj = sa.WaveObject.from_wave_file(byte_io)
-
-    return wave_obj
-
+    sound = pygame.sndarray.make_sound(stereo_wave)
+    return sound
 
 def is_valid_schema(data, schema_section):
     if not config.has_section(schema_section):
@@ -465,10 +415,9 @@ def main():
                     last_uid = nfc_data
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
-                    logger.info(f"Tag memory read, processing: {full_memory}")
-                    wave_obj = generate_beep()
-                    play_obj = wave_obj.play()
-                    play_obj.wait_done() 
+                    logger.info("Tag memory read, processing data.")
+                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+                    beep_sound.play()
 
                     if full_memory:
                         parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
@@ -520,5 +469,4 @@ if __name__ == "__main__":
     flask_thread.start()
 
     main()
-
 
