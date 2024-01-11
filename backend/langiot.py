@@ -1,6 +1,7 @@
 import requests
 import time
-import pygame # pip install pygame
+from pydub import AudioSegment
+from pydub.playback import play
 import numpy as np
 import json
 import io
@@ -44,10 +45,6 @@ CORS(app)
 logger.info(f"Config File: {CONFIG_FILE_PATH}")
 logger.info(f"Web App Path: {WEB_APP_PATH}")
 
-# Initialize audio
-pygame.init()
-pygame.mixer.init()
-logger.info("Pygame initialized")
 # Define threading event
 read_pause_event = threading.Event()
 
@@ -189,7 +186,7 @@ def handle_write_request(json_str):
     time.sleep(1)  # Allow time for read loop to pause
     write_nfc(pn532, json_str)  # Perform the write operation
     beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
-    beep_sound.play()
+    play(beep_sound)
     read_pause_event.clear()  # Resume the read loop
 
 def is_valid_json(json_str):
@@ -218,40 +215,61 @@ def perform_http_request(data):
         logger.error(f"HTTP request error: {e}")
         return None
 
-def play_audio(audio_data):
+
+def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 10 dB
     def audio_playback_thread(audio_data):
         try:
             logger.info("Loading audio data into stream.")
             audio_stream = io.BytesIO(audio_data)
-            pygame.mixer.music.load(audio_stream)
+            audio = AudioSegment.from_file(audio_stream, format='mp3')
+            silence = AudioSegment.silent(duration=100)  # 100 milliseconds of silence
+            audio = silence + audio
+
+            # Adjust volume
+            if volume_change_dB < 0:
+                logger.info(f"Reducing volume by {-volume_change_dB} dB.")
+                audio = audio - (-volume_change_dB)
+            elif volume_change_dB > 0:
+                logger.info(f"Increasing volume by {volume_change_dB} dB.")
+                audio = audio.apply_gain(volume_change_dB)
+
             logger.info("Audio data loaded, starting playback.")
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                time.sleep(1)
+            play(audio)
             logger.info("Audio playback finished.")
         except Exception as e:
             logger.error(f"Error playing audio: {e}")
+
     try:
         playback_thread = threading.Thread(target=audio_playback_thread, args=(audio_data,))
+        playback_thread.daemon = True
         playback_thread.start()
         logger.info("Audio playback thread started.")
     except Exception as e:
         logger.error(f"Error creating audio playback thread: {e}")
 
 def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
+    # Generate a sine wave
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     wave = np.sin(2 * np.pi * frequency * t)
-    wave = (volume * wave * 32767).astype(np.int16)  # Convert to 16-bit format
+
+    # Scale to the desired volume and convert to 16-bit format
+    wave = (volume * wave * 32767).astype(np.int16)
 
     # Create a stereo sound (2 channels)
-    stereo_wave = np.vstack((wave, wave)).T  # Duplicate the wave for left and right channels
+    stereo_wave = np.vstack((wave, wave)).T
 
-    # Ensure the array is C-contiguous
-    if not stereo_wave.flags['C_CONTIGUOUS']:
-        stereo_wave = np.ascontiguousarray(stereo_wave)
+    # Convert the NumPy array to bytes
+    wave_bytes = stereo_wave.tobytes()
 
-    sound = pygame.sndarray.make_sound(stereo_wave)
-    return sound
+    # Create an AudioSegment from the raw audio data
+    beep_sound = AudioSegment(
+        data=wave_bytes,
+        sample_width=2,  # 16-bit audio
+        frame_rate=sample_rate,
+        channels=2
+    )
+
+    return beep_sound
 
 def is_valid_schema(data, schema_section):
     if not config.has_section(schema_section):
@@ -402,9 +420,11 @@ def check_for_nfc_tag(pn532):
 
 # Main function for NFC tag reading loop
 def main():
-    global read_thread 
+    global read_thread
     last_uid = None
     logger.info("Script started, waiting for NFC tag.")
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+    play(beep_sound)
 
     def read_loop():
         nonlocal last_uid
@@ -417,7 +437,7 @@ def main():
                     full_memory = read_tag_memory(pn532, start_page=4)
                     logger.info("Tag memory read, processing data.")
                     beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
-                    beep_sound.play()
+                    play(beep_sound)
 
                     if full_memory:
                         parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
@@ -437,7 +457,7 @@ def main():
     read_thread.start()
 
 def signal_handler(sig, frame):
-    global read_thread 
+    global read_thread
     logger.info(f"Signal handler called with signal: {sig}")
 
     if read_thread is not None:
@@ -446,10 +466,6 @@ def signal_handler(sig, frame):
         logger.info("Read thread joined successfully.")
     else:
         logger.info("No read thread to join.")
-
-    logger.info("Quitting Pygame...")
-    pygame.quit()
-    logger.info("Pygame quit successfully.")
 
     logger.info("Exiting system...")
     sys.exit(0)
@@ -469,4 +485,3 @@ if __name__ == "__main__":
     flask_thread.start()
 
     main()
-
