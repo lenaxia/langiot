@@ -17,6 +17,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from digitalio import DigitalInOut
 from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
+import subprocess
 
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
 #os.environ['SDL_AUDIODRIVER'] = 'dummy'
@@ -25,6 +26,9 @@ os.environ['TESTMODE'] = 'False'
 # Set default values for environment variables
 DEFAULT_CONFIG_PATH = '/config/config.ini'
 DEFAULT_WEB_APP_PATH = '/app/web'
+
+WIFI_CONFIG_PATH = '/etc/wpa_supplicant/wpa_supplicant.conf'
+
 
 # Use environment variables if they are set, otherwise use the default values
 CONFIG_FILE_PATH = os.getenv('CONFIG_FILE_PATH', DEFAULT_CONFIG_PATH)
@@ -147,6 +151,77 @@ def update_config():
     new_config = request.json
     update_result = update_configuration(new_config)
     return jsonify(update_result), 200
+
+@app.route('/wifi-networks', methods=['GET'])
+def list_networks():
+    try:
+        networks = get_networks()
+        return jsonify(networks)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/wifi-networks', methods=['POST'])
+def add_network():
+    try:
+        ssid = request.json.get('ssid')
+        psk = request.json.get('psk')
+        key_mgmt = request.json.get('key_mgmt', 'WPA-PSK')
+
+        if not ssid or not psk:
+            return jsonify({"error": "SSID and PSK are required"}), 400
+
+        with open(WIFI_CONFIG_PATH, 'a') as file:
+            file.write(f'\nnetwork={{\n    ssid="{ssid}"\n    psk="{psk}"\n    key_mgmt={key_mgmt}\n}}\n')
+
+        logging.info(f"Added network: {ssid}")
+        return jsonify({"message": "Network added"}), 201
+    except Exception as e:
+        logging.error(f"Error adding Wi-Fi network: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/wifi-networks', methods=['DELETE'])
+def delete_network():
+    try:
+        ssid_to_delete = request.json.get('ssid')
+
+        if not ssid_to_delete:
+            return jsonify({"error": "SSID is required for deletion"}), 400
+
+        active_ssid = get_active_network()
+        if ssid_to_delete == active_ssid:
+            return jsonify({"error": "Cannot delete the active network"}), 400
+
+        networks = get_networks()
+        with open(WIFI_CONFIG_PATH, 'w') as file:
+            for network in networks:
+                if network['ssid'] != ssid_to_delete:
+                    file.write(f'\nnetwork={{\n    ssid="{network["ssid"]}"\n    psk="{network["psk"]}"\n    key_mgmt={network["key_mgmt"]}\n}}\n')
+
+        logging.info(f"Deleted network: {ssid_to_delete}")
+        return jsonify({"message": "Network deleted"}), 200
+    except Exception as e:
+        logging.error(f"Error deleting Wi-Fi network: {e}")
+        return jsonify({"error": str(e)}), 500
+
+def get_active_network():
+    try:
+        # Using 'iwgetid' to get the current network SSID
+        ssid = subprocess.check_output(['iwgetid', '-r']).strip()
+        return ssid.decode('utf-8') if ssid else None
+    except Exception as e:
+        logging.error(f"Error getting active network: {e}")
+        return None
+
+def get_networks():
+    try:
+        with open(WIFI_CONFIG_PATH, 'r') as file:
+            content = file.read()
+        networks = re.findall(r'network={\n\s*ssid="(.+)"\n\s*psk="(.+)"\n\s*key_mgmt=(.+)\n}', content)
+        active_ssid = get_active_network()
+        return [{"ssid": ssid, "psk": psk, "key_mgmt": key_mgmt, "isConnected": (ssid == active_ssid)} for ssid, psk, key_mgmt in networks]
+    except Exception as e:
+        logging.error(f"Error reading Wi-Fi configurations: {e}")
+        raise
 
 def load_configuration():
     global SERVER_NAME, API_TOKEN, HEADERS

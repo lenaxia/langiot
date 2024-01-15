@@ -8,6 +8,8 @@ const languageCodes = [
   { code: 'zh-TW', name: 'Chinese (Mandarin/Taiwan)' },
   { code: 'zh-CN', name: 'Chinese (Simplified)' },
   { code: 'zh', name: 'Chinese (Mandarin)' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'hi', name: 'Hindi' },
   { code: 'af', name: 'Afrikaans' },
   { code: 'ar', name: 'Arabic' },
   { code: 'bg', name: 'Bulgarian' },
@@ -22,8 +24,6 @@ const languageCodes = [
   { code: 'et', name: 'Estonian' },
   { code: 'fi', name: 'Finnish' },
   { code: 'fr', name: 'French' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'hi', name: 'Hindi' },
   { code: 'hr', name: 'Croatian' },
   { code: 'hu', name: 'Hungarian' },
   { code: 'id', name: 'Indonesian' },
@@ -80,6 +80,11 @@ function App() {
   const [jsonDisplay, setJsonDisplay] = useState('');
   const [serverName, setServerName] = useState('');
   const [apiToken, setApiToken] = useState('');
+  // Wi-Fi Management State
+  const [networks, setNetworks] = useState([]);
+  const [newNetworkSSID, setNewNetworkSSID] = useState('');
+  const [newNetworkPSK, setNewNetworkPSK] = useState('');
+  
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -101,7 +106,38 @@ function App() {
       setLanguage('');
       setTranslations(['']);
     }
+
+    fetchNetworks();
   }, [formType]);
+
+  const fetchNetworks = async () => {
+    try {
+      const response = await axios.get('/wifi-networks');
+      setNetworks(response.data);
+    } catch (error) {
+      console.error('Error fetching networks:', error);
+    }
+  };
+
+  const handleNetworkDeletion = async (ssid) => {
+    try {
+      await axios.delete('/wifi-networks', { data: { ssid } });
+      fetchNetworks(); // Refresh the list after deletion
+    } catch (error) {
+      console.error('Error deleting network:', error);
+    }
+  };
+
+  const handleNetworkAddition = async () => {
+    try {
+      await axios.post('/wifi-networks', { ssid: newNetworkSSID, psk: newNetworkPSK });
+      setNewNetworkSSID('');
+      setNewNetworkPSK('');
+      fetchNetworks(); // Refresh the list after addition
+    } catch (error) {
+      console.error('Error adding network:', error);
+    }
+  };
 
   const handleInputChange = (event, key) => {
     if (key === 'text') {
@@ -328,7 +364,42 @@ function App() {
       
             <div><button onClick={handleConfigSubmit}>Update Config</button></div>
             {errorConfig && <div className="error-message">{errorConfig}</div>}
+
+            <h2>Wi-Fi Network Management</h2>
+
+            {/* Display Known Networks */}
+            <div>
+              <h3>Known Networks</h3>
+              <ul>
+                {networks.map(network => (
+                  <li key={network.ssid}>
+                    {network.ssid}
+                    {network.isConnected ? ' (Currently Connected)' : 
+                      <button onClick={() => handleNetworkDeletion(network.ssid)}>Delete</button>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Add New Network Form */}
+            <div>
+              <h3>Add New Network</h3>
+              <input
+                type="text"
+                placeholder="SSID"
+                value={newNetworkSSID}
+                onChange={(e) => setNewNetworkSSID(e.target.value)}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={newNetworkPSK}
+                onChange={(e) => setNewNetworkPSK(e.target.value)}
+              />
+              <button onClick={handleNetworkAddition}>Add Network</button>
+            </div>
           </div>
+
         )}
       </div>
 
