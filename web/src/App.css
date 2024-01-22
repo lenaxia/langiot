@@ -68,13 +68,60 @@ button:hover {
   background-color: #4549F0;
 }
 
-input[type="text"], select, textarea {
-  padding: 6px 10px;
+input[type="text"], input[type="password"], select, textarea {
+  padding: 12px 20px; /* Increased padding for better touch-target size */
   margin: 8px 0;
-  display: inline-block;
+  display: block; /* Changed to block to make inputs stack */
+  width: 95%; /* Full width minus padding and border */
+  margin-left: auto;
+  margin-right: auto;
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box;
+}
+
+input[type="submit"] {
+  width: 100%;
+  background-color: #4CAF50;
+  color: white;
+  padding: 14px 20px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+input[type="submit"]:hover {
+  background-color: #45a049;
+}
+
+.network-form-group {
+  text-align: left;
+  margin-top: 20px;
+}
+
+.network-form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 16px;
+  margin-left: 5%; /* Match the input padding for alignment */
+}
+
+/* Adjust the button style */
+.network-add-btn {
+  display: block; /* Block level so it fills the container */
+  width: 95%; /* Match the input field width */
+  padding: 10px;
+  margin: 20px auto; /* Center the button and add some margin on the top */
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.network-add-btn:hover {
+  background-color: #0056b3;
 }
 
 input {
@@ -87,8 +134,9 @@ select {
 
 /* Media Queries for Mobile Devices */
 @media (max-width: 768px) {
-  input[type="text"], select, textarea {
-    width: 90%; /* Slightly smaller width for mobile */
+  /* Override the width for mobile devices */
+  input[type="text"], input[type="password"], select, textarea, .network-add-btn {
+    width: 90%;
   }
 
   select {
