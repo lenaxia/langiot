@@ -145,6 +145,28 @@ fi
 
 log_message "Avahi mDNS configuration complete."
 
+# Configure WiFi settings 
+echo "Configuring Wifi Settings. If not previously set up, please run this script as sudo"
+# Check if 'wificonfig' group exists
+if ! getent group wificonfig > /dev/null; then
+    sudo groupadd wificonfig
+    echo "Group 'wificonfig' created"
+fi
+# Check if user is in 'wificonfig' group
+if ! id -nG "$USER" | grep -qw wificonfig; then
+    sudo usermod -a -G wificonfig "$USER"
+    echo "User '$USER' added to 'wificonfig' group"
+fi
+# Check the group owner of wpa_supplicant.conf
+if [ "$(stat -c %G /etc/wpa_supplicant/wpa_supplicant.conf)" != "wificonfig" ]; then
+    sudo chgrp wificonfig /etc/wpa_supplicant/wpa_supplicant.conf
+    echo "Group owner of wpa_supplicant.conf changed to 'wificonfig'"
+fi
+# Check the permissions of wpa_supplicant.conf
+if [ "$(stat -c %a /etc/wpa_supplicant/wpa_supplicant.conf)" != "640" ]; then
+    sudo chmod 640 /etc/wpa_supplicant/wpa_supplicant.conf
+    echo "Permissions of wpa_supplicant.conf set to 640"
+fi
 
 # Clone the repository
 log_message "Cloning repository..."
@@ -171,7 +193,7 @@ fi
 log_message "Setting up a weekly cron job for repository updates..."
 
 # Define the cron job command
-CRON_JOB_COMMAND="cd $APP_DIR && git pull && bash install.sh > /dev/null 2>&1"
+CRON_JOB_COMMAND="git config pull.rebase false && cd $APP_DIR && git pull && bash install.sh > /dev/null 2>&1"
 
 # Export existing crontab to a temporary file
 TEMP_CRONTAB=$(mktemp)
