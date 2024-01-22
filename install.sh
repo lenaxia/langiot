@@ -36,6 +36,25 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Check if Node.js version 18 or higher is already installed
+NODE_VERSION=$(node --version 2>/dev/null | cut -d "v" -f 2)
+NODE_REQUIRED="18"
+
+if [[ $? -eq 0 && "${NODE_VERSION%%.*}" -ge "$NODE_REQUIRED" ]]; then
+    log_message "Node.js version $NODE_VERSION is already installed and meets the required version."
+else
+    # Install Node.js
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+
+    # Update the NODE_VERSION variable after installation
+    NODE_VERSION=$(node --version | cut -d "v" -f 2)
+    log_message "Node.js version $NODE_VERSION has been installed, or is already installed."
+fi
+
+# Remove unused packages
+sudo apt autoremove
+
 # Check if pyenv is installed and functional
 if command -v pyenv >/dev/null; then
     log_message "pyenv is already installed."
@@ -64,15 +83,6 @@ else
 fi
 
 pyenv global $PYTHON_REQUIRED
-
-
-# Check Node.js version
-NODE_VERSION=$(node --version | cut -d "v" -f 2)
-NODE_REQUIRED="18"
-if [[ "${NODE_VERSION%%.*}" -lt "$NODE_REQUIRED" ]]; then
-    log_message "Node.js version $NODE_VERSION is not sufficient. Required version is $NODE_REQUIRED or higher."
-    exit 1
-fi
 
 log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry DAC audio..."
 
