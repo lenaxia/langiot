@@ -227,22 +227,26 @@ def get_networks():
 def parse_wpa_supplicant_conf(file_path):
     networks = []
     current_network = {}
+    network_started = False
 
     with open(file_path, 'r') as file:
         for line in file:
             line = line.strip()
             if line.startswith('network='):
-                current_network = {}
-            elif line == '}':
-                if current_network:
-                    networks.append(current_network)
-                    current_network = {}
-            else:
+                network_started = True
+                current_network = {'key_mgmt': 'NONE'}  # Default if key_mgmt is not found
+            elif network_started and line == '}':
+                networks.append(current_network)
+                network_started = False
+            elif network_started:
                 key, _, value = line.partition('=')
                 key, value = key.strip(), value.strip().strip('"')
+                if value.startswith('\"') and value.endswith('\"'):
+                    value = value[1:-1]  # Remove quotes
                 current_network[key] = value
 
     return networks
+
 
 def load_configuration():
     global SERVER_NAME, API_TOKEN, HEADERS

@@ -382,29 +382,21 @@ function App() {
             </div>
 
             {/* Add New Network Form */}
-            <div class="network-form">
+            <div>
               <h3>Add New Network</h3>
-              <div class="form-field">
-                <label for="ssid">SSID</label>
-                <input
-                  id="ssid"
-                  type="text"
-                  placeholder="Enter SSID"
-                  value={newNetworkSSID}
-                  onChange={(e) => setNewNetworkSSID(e.target.value)}
-                />
-              </div>
-              <div class="form-field">
-                <label for="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="Enter Password"
-                  value={newNetworkPSK}
-                  onChange={(e) => setNewNetworkPSK(e.target.value)}
-                />
-              </div>
-              <button class="btn-add" onClick={handleNetworkAddition}>Add Network</button>
+              <input
+                type="text"
+                placeholder="SSID"
+                value={newNetworkSSID}
+                onChange={(e) => setNewNetworkSSID(e.target.value)}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={newNetworkPSK}
+                onChange={(e) => setNewNetworkPSK(e.target.value)}
+              />
+              <button onClick={handleNetworkAddition}>Add Network</button>
             </div>
           </div>
 
