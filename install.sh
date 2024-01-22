@@ -53,7 +53,7 @@ else
 fi
 
 # Remove unused packages
-sudo apt autoremove
+sudo apt autoremove -y
 
 # Check if pyenv is installed and functional
 if command -v pyenv >/dev/null; then

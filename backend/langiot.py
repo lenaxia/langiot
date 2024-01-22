@@ -4,6 +4,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 import numpy as np
 import json
+import re
 import io
 import os
 import signal
