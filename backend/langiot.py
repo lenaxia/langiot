@@ -217,12 +217,32 @@ def get_networks():
     try:
         with open(WIFI_CONFIG_PATH, 'r') as file:
             content = file.read()
-        networks = re.findall(r'network={\n\s*ssid="(.+)"\n\s*psk="(.+)"\n\s*key_mgmt=(.+)\n}', content)
+        networks = parse_wpa_supplicant_conf(WIFI_CONFIG_PATH)
         active_ssid = get_active_network()
         return [{"ssid": ssid, "psk": psk, "key_mgmt": key_mgmt, "isConnected": (ssid == active_ssid)} for ssid, psk, key_mgmt in networks]
     except Exception as e:
         logging.error(f"Error reading Wi-Fi configurations: {e}")
         raise
+
+def parse_wpa_supplicant_conf(file_path):
+    networks = []
+    current_network = {}
+
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith('network='):
+                current_network = {}
+            elif line == '}':
+                if current_network:
+                    networks.append(current_network)
+                    current_network = {}
+            else:
+                key, _, value = line.partition('=')
+                key, value = key.strip(), value.strip().strip('"')
+                current_network[key] = value
+
+    return networks
 
 def load_configuration():
     global SERVER_NAME, API_TOKEN, HEADERS
