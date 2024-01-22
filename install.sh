@@ -245,15 +245,23 @@ fi
 # Deactivate virtual environment
 deactivate
 
-# Create config directory and copy config file
+# Create config directory and copy config file if it doesn't exist
 log_message "Setting up configuration..."
-sudo mkdir -p "$CONFIG_DIR" && sudo cp "$APP_DIR/backend/config.ini" "$CONFIG_DIR/$CONFIG_FILE"
-sudo chown $USER:$USER $CONFIG_DIR/$CONFIG_FILE
-chmod 644 $CONFIG_DIR/$CONFIG_FILE
-if [ $? -ne 0 ]; then
-    log_message "Failed to set up configuration."
-    exit 1
+sudo mkdir -p "$CONFIG_DIR"
+
+if [ ! -f "$CONFIG_DIR/$CONFIG_FILE" ]; then
+    sudo cp "$APP_DIR/backend/config.ini" "$CONFIG_DIR/$CONFIG_FILE"
+    sudo chown $USER:$USER "$CONFIG_DIR/$CONFIG_FILE"
+    chmod 644 "$CONFIG_DIR/$CONFIG_FILE"
+
+    if [ $? -ne 0 ]; then
+        log_message "Failed to set up configuration."
+        exit 1
+    fi
+else
+    log_message "Configuration file already exists. Skipping copy."
 fi
+
 
 # Create a systemd service for Flask app using Gunicorn
 log_message "Creating systemd service for Gunicorn..."
