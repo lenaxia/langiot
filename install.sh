@@ -169,6 +169,8 @@ if [ "$(stat -c %a /etc/wpa_supplicant/wpa_supplicant.conf)" != "640" ]; then
 fi
 
 # Clone the repository
+git config --global pull.rebase false
+
 log_message "Cloning repository..."
 if [ -d "$APP_DIR" ]; then
     if [ -d "$APP_DIR/.git" ]; then
@@ -193,7 +195,7 @@ fi
 log_message "Setting up a weekly cron job for repository updates..."
 
 # Define the cron job command
-CRON_JOB_COMMAND="git config pull.rebase false && cd $APP_DIR && git pull && bash install.sh > /dev/null 2>&1"
+CRON_JOB_COMMAND="cd $APP_DIR && git pull && bash install.sh > /dev/null 2>&1"
 
 # Export existing crontab to a temporary file
 TEMP_CRONTAB=$(mktemp)
