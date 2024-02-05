@@ -55,34 +55,30 @@ fi
 # Remove unused packages
 sudo apt autoremove -y
 
-# Check if pyenv is installed and functional
-if command -v pyenv >/dev/null; then
-    log_message "pyenv is already installed."
+# Check if Python virtual environment already exists
+if [ -d "$APP_DIR/backend/venv" ]; then
+    log_message "Python virtual environment already exists. Skipping creation."
 else
-    log_message "Installing pyenv..."
-    curl https://pyenv.run | bash
-
-    # Update PATH and initialize pyenv in the current script session
-    export PYENV_ROOT="$HOME/.pyenv"
-    export PATH="$PYENV_ROOT/bin:$PATH"
-    eval "$(pyenv init --path)"
-    eval "$(pyenv init -)"
+    log_message "Setting up Python Virtual Environment..."
+    python3 -m venv "$APP_DIR/backend/venv"
 fi
 
-# Check Python version and install new version if needed
-PYTHON_REQUIRED="3.9.0"
-if pyenv versions | grep -q "$PYTHON_REQUIRED"; then
-    log_message "Python $PYTHON_REQUIRED is already installed."
-else
-    log_message "Installing Python $PYTHON_REQUIRED..."
-    pyenv install $PYTHON_REQUIRED
-    if [ $? -ne 0 ]; then
-        log_message "Failed to install Python $PYTHON_REQUIRED."
-        exit 1
-    fi
+# Activate the virtual environment
+source "$APP_DIR/backend/venv/bin/activate"
+
+# Optionally, check for updates to requirements.txt dependencies
+pip3 install --no-cache-dir -r "$APP_DIR/backend/requirements.txt"
+
+# Always deactivate the virtual environment
+deactivate
+
+# Check if the required Python version is set as global in pyenv
+PYENV_GLOBAL_VERSION=$(pyenv global)
+if [[ "$PYENV_GLOBAL_VERSION" != "$PYTHON_REQUIRED" ]]; then
+    log_message "Setting pyenv global version to $PYTHON_REQUIRED..."
+    pyenv global $PYTHON_REQUIRED
 fi
 
-pyenv global $PYTHON_REQUIRED
 
 log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry DAC audio..."
 
@@ -108,11 +104,16 @@ fi
 
 log_message "Installing and configuring Avahi for mDNS..."
 
-# Install Avahi daemon
-sudo apt-get install -y avahi-daemon
-if [ $? -ne 0 ]; then
-    log_message "Failed to install Avahi daemon."
-    exit 1
+# Before installing Avahi daemon, check if it's already installed
+if ! dpkg -l | grep -qw avahi-daemon; then
+    log_message "Installing Avahi daemon..."
+    sudo apt-get install -y avahi-daemon
+    if [ $? -ne 0 ]; then
+        log_message "Failed to install Avahi daemon."
+        exit 1
+    fi
+else
+    log_message "Avahi daemon already installed."
 fi
 
 # Create and configure Avahi service file
