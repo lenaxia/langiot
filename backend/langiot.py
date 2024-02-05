@@ -169,40 +169,41 @@ def add_network():
         key_mgmt = request.json.get('key_mgmt', 'WPA-PSK')
 
         if not ssid or not psk:
+            logging.warning("Attempt to add a network without providing both SSID and PSK.")
             return jsonify({"error": "SSID and PSK are required"}), 400
 
-        with open(WIFI_CONFIG_PATH, 'a') as file:
-            file.write(f'\nnetwork={{\n    ssid="{ssid}"\n    psk="{psk}"\n    key_mgmt={key_mgmt}\n}}\n')
+        result = subprocess.run(['sudo', './networkadd.sh', ssid, psk, key_mgmt], capture_output=True, text=True)
 
-        logging.info(f"Added network: {ssid}")
+        if result.returncode != 0:
+            logging.error(f"Script error when adding network {ssid}: {result.stderr}")
+            return jsonify({"error": "Failed to add network, please check system logs"}), 500
+
+        logging.info(f"Successfully added network: {ssid}")
         return jsonify({"message": "Network added"}), 201
     except Exception as e:
-        logging.error(f"Error adding Wi-Fi network: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.exception(f"Unexpected error adding Wi-Fi network: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/wifi-networks', methods=['DELETE'])
 def delete_network():
     try:
         ssid_to_delete = request.json.get('ssid')
-
         if not ssid_to_delete:
+            logging.warning("Attempt to delete a network without specifying SSID.")
             return jsonify({"error": "SSID is required for deletion"}), 400
 
-        active_ssid = get_active_network()
-        if ssid_to_delete == active_ssid:
-            return jsonify({"error": "Cannot delete the active network"}), 400
+        result = subprocess.run(['sudo', './networkdelete.sh', ssid_to_delete], capture_output=True, text=True)
 
-        networks = get_networks()
-        with open(WIFI_CONFIG_PATH, 'w') as file:
-            for network in networks:
-                if network['ssid'] != ssid_to_delete:
-                    file.write(f'\nnetwork={{\n    ssid="{network["ssid"]}"\n    psk="{network["psk"]}"\n    key_mgmt={network["key_mgmt"]}\n}}\n')
+        if result.returncode != 0:
+            logging.error(f"Script error when deleting network {ssid_to_delete}: {result.stderr}")
+            return jsonify({"error": "Failed to delete network, please check system logs"}), 500
 
-        logging.info(f"Deleted network: {ssid_to_delete}")
+        logging.info(f"Successfully deleted network: {ssid_to_delete}")
         return jsonify({"message": "Network deleted"}), 200
     except Exception as e:
-        logging.error(f"Error deleting Wi-Fi network: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.exception(f"Unexpected error deleting Wi-Fi network: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
 
 def get_active_network():
     try:
@@ -215,36 +216,38 @@ def get_active_network():
 
 def get_networks():
     try:
-        with open(WIFI_CONFIG_PATH, 'r') as file:
-            content = file.read()
         networks = parse_wpa_supplicant_conf(WIFI_CONFIG_PATH)
         active_ssid = get_active_network()
-        return [{"ssid": ssid, "psk": psk, "key_mgmt": key_mgmt, "isConnected": (ssid == active_ssid)} for ssid, psk, key_mgmt in networks]
+        return [{"ssid": network.get('ssid', ''),
+                 "psk": network.get('psk', ''),
+                 "key_mgmt": network.get('key_mgmt', 'NONE'),  # Assume 'NONE' if not present
+                 "isConnected": (network.get('ssid', '') == active_ssid)}
+                for network in networks]
     except Exception as e:
         logging.error(f"Error reading Wi-Fi configurations: {e}")
         raise
 
 def parse_wpa_supplicant_conf(file_path):
     networks = []
-    current_network = {}
-    network_started = False
-
     with open(file_path, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith('network='):
-                network_started = True
-                current_network = {'key_mgmt': 'NONE'}  # Default if key_mgmt is not found
-            elif network_started and line == '}':
-                networks.append(current_network)
-                network_started = False
-            elif network_started:
-                key, _, value = line.partition('=')
-                key, value = key.strip(), value.strip().strip('"')
-                if value.startswith('\"') and value.endswith('\"'):
-                    value = value[1:-1]  # Remove quotes
-                current_network[key] = value
-
+        content = file.read()
+    
+    # Simple state machine to parse networks
+    in_network_block = False
+    for line in content.split('\n'):
+        line = line.strip()
+        if line.startswith('network='):
+            in_network_block = True
+            current_network = {}
+        elif line == '}' and in_network_block:
+            networks.append(current_network)
+            in_network_block = False
+        elif in_network_block:
+            key, _, value = line.partition('=')
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]  # Strip quotes
+            current_network[key] = value
+    
     return networks
 
 

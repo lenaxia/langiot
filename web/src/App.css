@@ -87,7 +87,7 @@ select {
 
 /* Media Queries for Mobile Devices */
 @media (max-width: 768px) {
-  input[type="text"], select, textarea {
+  input[type="text"], input[type="password"], select, textarea {
     width: 90%; /* Slightly smaller width for mobile */
   }
 
@@ -164,7 +164,7 @@ select {
   border-top: 1px solid #ccc;
 }
 
-.config-form input[type="text"] {
+.config-form input[type="text"], input[type="password"] {
   margin: 5px 0;
   width: 70%;
 }
@@ -182,4 +182,3 @@ select {
   margin-bottom: 5px;
   font-weight: bold;
 }
-

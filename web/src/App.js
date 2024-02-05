@@ -370,15 +370,16 @@ function App() {
             {/* Display Known Networks */}
             <div>
               <h3>Known Networks</h3>
-              <ul>
+              <div className="networks-container">
                 {networks.map(network => (
-                  <li key={network.ssid}>
-                    {network.ssid}
-                    {network.isConnected ? ' (Currently Connected)' : 
+                  <div key={network.ssid} className="network-card">
+                    <span>{network.ssid}</span>
+                    {network.isConnected ? 
+                      <span> (Currently Connected)</span> : 
                       <button onClick={() => handleNetworkDeletion(network.ssid)}>Delete</button>}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
 
             {/* Add New Network Form */}
@@ -396,8 +397,11 @@ function App() {
                 value={newNetworkPSK}
                 onChange={(e) => setNewNetworkPSK(e.target.value)}
               />
-              <button onClick={handleNetworkAddition}>Add Network</button>
+              <div> {/* This div wraps the button, putting it on a new line */}
+                <button onClick={handleNetworkAddition}>Add Network</button>
+              </div>
             </div>
+
           </div>
 
         )}
