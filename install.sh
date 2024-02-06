@@ -72,14 +72,6 @@ pip3 install --no-cache-dir -r "$APP_DIR/backend/requirements.txt"
 # Always deactivate the virtual environment
 deactivate
 
-# Check if the required Python version is set as global in pyenv
-PYENV_GLOBAL_VERSION=$(pyenv global)
-if [[ "$PYENV_GLOBAL_VERSION" != "$PYTHON_REQUIRED" ]]; then
-    log_message "Setting pyenv global version to $PYTHON_REQUIRED..."
-    pyenv global $PYTHON_REQUIRED
-fi
-
-
 log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry DAC audio..."
 
 # Backup the original config.txt file
