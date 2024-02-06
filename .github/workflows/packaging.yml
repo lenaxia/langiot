@@ -27,6 +27,7 @@ jobs:
 
     - name: Create and activate Python virtual environment
       run: |
+        cd backend
         python -m venv venv
         source venv/bin/activate
 
@@ -53,7 +54,7 @@ jobs:
 
     - name: Package Application including the venv
       run: |
-        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./venv
+        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
