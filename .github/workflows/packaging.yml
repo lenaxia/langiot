@@ -5,6 +5,7 @@ on:
     tags:
       - '*'
 
+
 permissions:
   contents: write
   issues: write
@@ -22,7 +23,7 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Install system dependencies
+    - name: Install system dependencies for building
       run: sudo apt-get update && sudo apt-get install -y libasound2-dev ffmpeg libatlas-base-dev
 
     - name: Install Python dependencies
