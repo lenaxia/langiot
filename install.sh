@@ -166,24 +166,24 @@ fi
 # Clone the repository
 git config --global pull.rebase false
 
-log_message "Cloning repository..."
-if [ -d "$APP_DIR" ]; then
-    if [ -d "$APP_DIR/.git" ]; then
-        log_message "Directory already exists and is a git repository. Pulling latest changes..."
-        git -C "$APP_DIR" pull 2>&1 | tee -a "$LOG_FILE"
-    else
-        log_message "Directory already exists but is not a git repository. Removing and recloning..."
-        rm -rf "$APP_DIR"
-        git clone "$REPO_URL" "$APP_DIR" 2>&1 | tee -a "$LOG_FILE"
-    fi
-else
-    git clone "$REPO_URL" "$APP_DIR" 2>&1 | tee -a "$LOG_FILE"
-fi
+#log_message "Cloning repository..."
+#if [ -d "$APP_DIR" ]; then
+#    if [ -d "$APP_DIR/.git" ]; then
+#        log_message "Directory already exists and is a git repository. Pulling latest changes..."
+#        git -C "$APP_DIR" pull 2>&1 | tee -a "$LOG_FILE"
+#    else
+#        log_message "Directory already exists but is not a git repository. Removing and recloning..."
+#        rm -rf "$APP_DIR"
+#        git clone "$REPO_URL" "$APP_DIR" 2>&1 | tee -a "$LOG_FILE"
+#    fi
+#else
+#    git clone "$REPO_URL" "$APP_DIR" 2>&1 | tee -a "$LOG_FILE"
+#fi
 
-if [ $? -ne 0 ]; then
-    log_message "Failed to clone the repository."
-    exit 1
-fi
+#if [ $? -ne 0 ]; then
+#    log_message "Failed to clone the repository."
+#    exit 1
+#fi
 
 # Set up a cron job for weekly updates
 # We want this to be smart enough to not add duplicate contab entries
@@ -213,19 +213,32 @@ fi
 # Clean up
 rm "$TEMP_CRONTAB"
 
-# Build the React application
-log_message "Building React application..."
-cd "$APP_DIR/web" && npm install && npm run build 2>&1 | tee -a "$LOG_FILE"
-if [ $? -ne 0 ]; then
-    log_message "Failed to build the React application."
-    exit 1
-fi
+# make the app folder
+mkdir -p $APP_DIR
+cd $APP_DIR
 
-# Move to backend directory
-cd "$APP_DIR/backend"
-mkdir -p "$APP_DIR/backend/web"
-rm -rf "$APP_DIR/backend/web/"*
-mv "$APP_DIR/web/build/"* "$APP_DIR/backend/web"
+# Get the latest release assets JSON from GitHub API
+assets_url=$(curl -s https://api.github.com/repos/lenaxia/langiot/releases/latest | jq -r '.assets_url')
+# Fetch the browser_download_url for the specific asset (langiot-package.tar.gz)
+download_url=$(curl -s "${assets_url}" | jq -r '.[] | select(.name == "langiot-package.tar.gz") | .browser_download_url')
+# Use wget to download the tar.gz file
+wget -O langiot-package.tar.gz "${download_url}"
+
+tar -xzvf langiot-package.tar.gz
+
+## Build the React application
+#log_message "Building React application..."
+#cd "$APP_DIR/web" && npm install && npm run build 2>&1 | tee -a "$LOG_FILE"
+#if [ $? -ne 0 ]; then
+#    log_message "Failed to build the React application."
+#    exit 1
+#fi
+
+## Move to backend directory
+#cd "$APP_DIR/backend"
+#mkdir -p "$APP_DIR/backend/web"
+#rm -rf "$APP_DIR/backend/web/"*
+#mv "$APP_DIR/web/build/"* "$APP_DIR/backend/web"
 
 # Setup Python Virtual Environment
 log_message "Setting up Python Virtual Environment..."
