@@ -29,8 +29,11 @@ sudo chown $USER:$USER /home/$USER/.xdg
 
 # Update and install dependencies
 log_message "Updating system and installing dependencies..."
-sudo apt-get update && sudo apt-get install -y git nodejs npm gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+sudo apt-get remove nodejs-legacy
+sudo apt-get update && sudo apt-get install -y git gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libjpeg-dev python3-dev libasound2-dev ffmpeg python3-pip python3-venv
+curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -  # Adjust "setup_18.x" as needed for your preferred version
+sudo apt-get install -y nodejs
 if [ $? -ne 0 ]; then
     log_message "Failed to install required packages."
     exit 1
@@ -84,7 +87,6 @@ sudo sed -i 's/#dtparam=spi=on/dtparam=spi=on/' /boot/config.txt
 if ! grep -q "^dtoverlay=hifiberry-dac$" /boot/config.txt; then
     echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
 fi
-
 
 # Disable onboard audio (to avoid conflicts)
 sudo sed -i 's/^dtparam=audio=on/#dtparam=audio=on/' /boot/config.txt
