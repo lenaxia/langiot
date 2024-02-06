@@ -5,7 +5,6 @@ on:
     tags:
       - '*'
 
-
 permissions:
   contents: write
   issues: write
@@ -25,6 +24,11 @@ jobs:
 
     - name: Install system dependencies for building
       run: sudo apt-get update && sudo apt-get install -y libasound2-dev ffmpeg libatlas-base-dev
+
+    - name: Create and activate Python virtual environment
+      run: |
+        python -m venv venv
+        source venv/bin/activate
 
     - name: Install Python dependencies
       run: |
@@ -47,9 +51,9 @@ jobs:
         rm -rf ./backend/web/*
         mv ./web/build/* ./backend/web/
 
-    - name: Package Application
+    - name: Package Application including the venv
       run: |
-        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh
+        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./venv
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
