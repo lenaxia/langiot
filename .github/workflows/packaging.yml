@@ -33,7 +33,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        pip install -r requirements.txt
+        pip install -r ./backend/requirements.txt
 
     - name: Set up Node.js
       uses: actions/setup-node@v2
