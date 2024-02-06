@@ -40,6 +40,7 @@ jobs:
 
     - name: Move React build to backend
       run: |
+        mkdir -p "./backend/web"
         rm -rf ./backend/web/*
         mv ./web/build/* ./backend/web/
 
