@@ -312,9 +312,12 @@ fi
 log_message "Creating asound.conf config file for HifiBerry DAC..."
 sudo tee "/etc/asound.conf" > /dev/null << EOF
 pcm.!default {
-    type hw
-    card 0
+    type plug
+    slave {
+        pcm "hw:0,0"
+    }
 }
+
 ctl.!default {
     type hw
     card 0

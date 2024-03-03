@@ -336,6 +336,9 @@ def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 
                 logger.info(f"Increasing volume by {volume_change_dB} dB.")
                 audio = audio.apply_gain(volume_change_dB)
 
+            audio = audio.set_channels(2)
+            audio = audio.set_frame_rate(22050)
+
             logger.info("Audio data loaded, starting playback.")
             play(audio)
             logger.info("Audio playback finished.")
