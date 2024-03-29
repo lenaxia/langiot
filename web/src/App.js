@@ -271,13 +271,16 @@ function App() {
   
       console.log('Writing NFC with JSON:', jsonData);
       setJsonDisplay(JSON.stringify(jsonData, null, 2)); // Update JSON display here
-      await axios.post('/handle_write', jsonData);
+  
+      // Wrap the jsonData in an object with a key `json_str`
+      await axios.post('/handle_write', { json_str: jsonData });
       alert('Write to NFC tag initiated' + (soundFileUrl ? ' with sound file' : ''));
     } catch (error) {
       console.error('Error writing to NFC:', error);
       setError(`Error: ${error.response ? error.response.status : ''} ${error.message}`);
     }
   };
+
 
   const handleConfigSubmit = async () => {
     try {
