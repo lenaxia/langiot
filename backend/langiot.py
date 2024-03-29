@@ -1,3 +1,4 @@
+from pydub.exceptions import CouldNotDecodeError
 import requests
 import time
 from pydub import AudioSegment
@@ -524,7 +525,30 @@ def check_for_nfc_tag(pn532):
     return None
 
 
-# Main function for NFC tag reading loop
+def is_valid_audio_file(file_path):
+    try:
+        # Attempt to load the file with pydub to check if it's a valid audio file
+        audio = AudioSegment.from_file(file_path)
+        return True  # The file is a valid audio file
+    except CouldNotDecodeError:
+        logger.error(f"Invalid audio file format: {file_path}")
+        return False
+    except Exception as e:
+        logger.error(f"Error validating audio file: {e}")
+        return False
+
+def cleanup_downloaded_audio_file():
+    file_path = '/tmp/local_audio.mp3'  # Path where the audio file is downloaded
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Successfully deleted temporary audio file: {file_path}")
+        else:
+            logger.info(f"No temporary audio file found to delete at: {file_path}")
+    except Exception as e:
+        logger.error(f"Error deleting temporary audio file at {file_path}: {e}")
+
+
 def main():
     global read_thread
     last_uid = None
@@ -549,18 +573,41 @@ def main():
                         parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
                         if parsed_data:
                             logger.info(f"Parsed data: {parsed_data}")
-                            audio_data = perform_http_request(parsed_data)
-                            if audio_data:
-                                logger.info("Audio data received, starting playback.")
-                                play_audio(audio_data)
+
+                            sound_file_thread = None
+                            sound_file_url = parsed_data.get('soundFileUrl')
+                            if sound_file_url:
+                                sound_file_thread = threading.Thread(target=download_sound_file, args=(sound_file_url,))
+                                sound_file_thread.start()
+
+                            server_audio_data = perform_http_request(parsed_data)
+                            if server_audio_data:
+                                logger.info("Server audio data received, starting playback.")
+                                play_audio(server_audio_data)
+
+                            if sound_file_thread:
+                                sound_file_thread.join()
+                                local_audio_file_path = '/tmp/local_audio.mp3'  # Path where the audio file is downloaded
+                                if is_valid_audio_file(local_audio_file_path):
+                                    local_audio_data = get_downloaded_audio_data()
+                                    if local_audio_data:
+                                        logger.info("Local audio data validated and available, starting playback.")
+                                        play_audio(local_audio_data)
+                                else:
+                                    logger.warning("Downloaded audio file is not valid and will not be played.")
+
+                                cleanup_downloaded_audio_file()
+
                 elif not nfc_data:
                     last_uid = None
+
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
             time.sleep(1)
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
+
 
 def signal_handler(sig, frame):
     global read_thread
