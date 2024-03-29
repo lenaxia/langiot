@@ -197,7 +197,7 @@ function App() {
   };
 
   const isValidAudioFileUrl = (url) => {
-    return /\.(mp3|wav|m4a|ogg)$/i.test(url);
+    return !url || /\.(mp3|wav|m4a|ogg)$/i.test(url);
   };
 
   const performHttpRequest = async () => {
@@ -205,18 +205,19 @@ function App() {
       alert('Please ensure all fields have text and languages selected');
       return;
     }
-
-    if (!isValidAudioFileUrl(soundFileUrl)) {
+  
+    if (soundFileUrl && !isValidAudioFileUrl(soundFileUrl)) {
       alert('Please provide a valid URL for an audio file (.mp3, .wav, .m4a, .ogg)');
       return;
     }
-
+  
     try {
       const jsonStr = generateJson();
-      // Include soundFileUrl in the data sent to the server
       const jsonData = JSON.parse(jsonStr);
-      jsonData.soundFileUrl = soundFileUrl;
-
+      if (soundFileUrl) {
+        jsonData.soundFileUrl = soundFileUrl;
+      }
+  
       console.log('Sending JSON:', jsonData);
       setJsonDisplay(JSON.stringify(jsonData));
 
@@ -250,23 +251,32 @@ function App() {
     }
   };
   
-
   const handleWriteNFC = async () => {
     if (!isValidJson()) {
       alert('Please fill in all fields correctly.');
       return;
     }
-
+  
+    if (soundFileUrl && !isValidAudioFileUrl(soundFileUrl)) {
+      alert('Please provide a valid URL for an audio file (.mp3, .wav, .m4a, .ogg)');
+      return;
+    }
+  
     try {
       const jsonStr = generateJson();
-      console.log('Writing NFC with JSON:', jsonStr);
-      await axios.post('/handle_write', { json_str: jsonStr });
-      alert('Write to NFC tag initiated');
+      const jsonData = JSON.parse(jsonStr);
+      if (soundFileUrl) {
+        jsonData.soundFileUrl = soundFileUrl;
+      }
+  
+      console.log('Writing NFC with JSON:', jsonData);
+      await axios.post('/handle_write', jsonData);
+      alert('Write to NFC tag initiated' + (soundFileUrl ? ' with sound file' : ''));
     } catch (error) {
       console.error('Error writing to NFC:', error);
       setError(`Error: ${error.response ? error.response.status : ''} ${error.message}`);
     }
-  }
+  };
 
   const handleConfigSubmit = async () => {
     try {
@@ -327,13 +337,13 @@ function App() {
         <button onClick={addLocalizationOrTranslation}>Add {formType === 'localization' ? 'Localization' : 'Translation'}</button>
       </div>
       <div>
-        <label htmlFor="soundFileUrl">Sound File URL:</label>
+        <label htmlFor="soundFileUrl">Audio File (Optional):</label>
         <input
           id="soundFileUrl"
           type="text"
           value={soundFileUrl}
           onChange={handleSoundFileUrlChange}
-          placeholder="Enter URL for the sound file"
+          placeholder="Enter URL for the audio file"
         />
       </div>
       <div>
