@@ -1,4 +1,3 @@
-from pydub.exceptions import CouldNotDecodeError
 import requests
 import time
 from pydub import AudioSegment
@@ -527,14 +526,10 @@ def check_for_nfc_tag(pn532):
 
 def is_valid_audio_file(file_path):
     try:
-        # Attempt to load the file with pydub to check if it's a valid audio file
         audio = AudioSegment.from_file(file_path)
         return True  # The file is a valid audio file
-    except CouldNotDecodeError:
-        logger.error(f"Invalid audio file format: {file_path}")
-        return False
     except Exception as e:
-        logger.error(f"Error validating audio file: {e}")
+        logger.error(f"Error loading audio file: {e}")
         return False
 
 def cleanup_downloaded_audio_file():
