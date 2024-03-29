@@ -285,7 +285,7 @@ def update_configuration(new_config):
 
 
 def handle_write_request(json_str):
-    logger.info(json_str)
+    logger.info(f"json: {json_str}")
     read_pause_event.set()  # Pause the read loop
     time.sleep(1)  # Allow time for read loop to pause
     write_nfc(pn532, json_str)  # Perform the write operation
