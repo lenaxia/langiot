@@ -178,18 +178,27 @@ function App() {
 
   const generateJson = () => {
     setError('');
+    let data = {};
+  
     if (formType === 'localization') {
-      return JSON.stringify({ localization: localizations.reduce((acc, loc) => {
+      data.localization = localizations.reduce((acc, loc) => {
         acc[loc.language] = loc.value;
         return acc;
-      }, {})});
+      }, {});
     } else {
-      return JSON.stringify({
+      data = {
         text,
         language,
         translations
-      });
+      };
     }
+  
+    // Add soundFileUrl to the JSON data if it's provided
+    if (soundFileUrl && isValidAudioFileUrl(soundFileUrl)) {
+      data.soundFileUrl = soundFileUrl;
+    }
+  
+    return JSON.stringify(data);
   };
 
   const handleSoundFileUrlChange = (event) => {
@@ -214,9 +223,6 @@ function App() {
     try {
       const jsonStr = generateJson();
       const jsonData = JSON.parse(jsonStr);
-      if (soundFileUrl) {
-        jsonData.soundFileUrl = soundFileUrl;
-      }
   
       console.log('Sending JSON:', jsonData);
       setJsonDisplay(JSON.stringify(jsonData));
@@ -256,31 +262,17 @@ function App() {
       alert('Please fill in all fields correctly.');
       return;
     }
-  
-    if (soundFileUrl && !isValidAudioFileUrl(soundFileUrl)) {
-      alert('Please provide a valid URL for an audio file (.mp3, .wav, .m4a, .ogg)');
-      return;
-    }
-  
+
     try {
       const jsonStr = generateJson();
-      const jsonData = JSON.parse(jsonStr);
-      if (soundFileUrl) {
-        jsonData.soundFileUrl = soundFileUrl;
-      }
-  
-      console.log('Writing NFC with JSON:', jsonData);
-      setJsonDisplay(JSON.stringify(jsonData, null, 2)); // Update JSON display here
-  
-      // Wrap the jsonData in an object with a key `json_str`
-      await axios.post('/handle_write', { json_str: jsonData });
-      alert('Write to NFC tag initiated' + (soundFileUrl ? ' with sound file' : ''));
+      console.log('Writing NFC with JSON:', jsonStr);
+      await axios.post('/handle_write', { json_str: jsonStr });
+      alert('Write to NFC tag initiated');
     } catch (error) {
       console.error('Error writing to NFC:', error);
       setError(`Error: ${error.response ? error.response.status : ''} ${error.message}`);
     }
-  };
-
+  }
 
   const handleConfigSubmit = async () => {
     try {
