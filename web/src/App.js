@@ -80,6 +80,7 @@ function App() {
   const [jsonDisplay, setJsonDisplay] = useState('');
   const [serverName, setServerName] = useState('');
   const [apiToken, setApiToken] = useState('');
+  const [soundFileUrl, setSoundFileUrl] = useState('');
   // Wi-Fi Management State
   const [networks, setNetworks] = useState([]);
   const [newNetworkSSID, setNewNetworkSSID] = useState('');
@@ -191,25 +192,37 @@ function App() {
     }
   };
 
+  const handleSoundFileUrlChange = (event) => {
+    setSoundFileUrl(event.target.value);
+  };
+
+  const isValidAudioFileUrl = (url) => {
+    return /\.(mp3|wav|m4a|ogg)$/i.test(url);
+  };
+
   const performHttpRequest = async () => {
-    setAudio(null)
     if (!isValidJson()) {
       alert('Please ensure all fields have text and languages selected');
       return;
     }
-  
+
+    if (!isValidAudioFileUrl(soundFileUrl)) {
+      alert('Please provide a valid URL for an audio file (.mp3, .wav, .m4a, .ogg)');
+      return;
+    }
+
     try {
       const jsonStr = generateJson();
-      console.log('Sending JSON:', jsonStr);
-      setJsonDisplay(jsonStr);
-      
-      // Parse the JSON string into an object
+      // Include soundFileUrl in the data sent to the server
       const jsonData = JSON.parse(jsonStr);
-  
-      // Send the JSON object directly
+      jsonData.soundFileUrl = soundFileUrl;
+
+      console.log('Sending JSON:', jsonData);
+      setJsonDisplay(JSON.stringify(jsonData));
+
       const response = await axios.post('/perform_http_request', jsonData, { responseType: 'blob' });
       console.log('Received response:', response);
-  
+
       if (response.data) {
         const url = URL.createObjectURL(response.data);
         console.log('Generated URL:', url);
@@ -223,8 +236,7 @@ function App() {
       setError(`Error: ${error.response ? error.response.status : ''} ${error.message}`);
     }
   };
-  
-  
+
   const playAudio = async (audioData) => {
     try {
       const formData = new FormData();
@@ -313,6 +325,16 @@ function App() {
 
       <div className="addLanguage">
         <button onClick={addLocalizationOrTranslation}>Add {formType === 'localization' ? 'Localization' : 'Translation'}</button>
+      </div>
+      <div>
+        <label htmlFor="soundFileUrl">Sound File URL:</label>
+        <input
+          id="soundFileUrl"
+          type="text"
+          value={soundFileUrl}
+          onChange={handleSoundFileUrlChange}
+          placeholder="Enter URL for the sound file"
+        />
       </div>
       <div>
         <button onClick={performHttpRequest}>Test Audio</button>
