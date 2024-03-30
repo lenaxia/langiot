@@ -599,12 +599,11 @@ def read_loop():
                             cleanup_downloaded_audio_file()
                             logger.info("Cleanup of downloaded audio file completed.")
 
-                elif not nfc_data:
-                    last_uid = None
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
 
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
-            time.sleep(1)
+        time.sleep(1)
+
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
