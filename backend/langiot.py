@@ -467,6 +467,9 @@ def write_nfc(pn532, json_data, start_page=4):
 
         write_to_nfc_tag(pn532, page, list(chunk))
 
+        # Add a delay between write operations to slow down the speed
+        time.sleep(0.1)  # Adjust the delay as needed
+
 
 
 def write_to_nfc_tag(pn532, page, data):
