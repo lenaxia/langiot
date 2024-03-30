@@ -1,4 +1,4 @@
-import requests
+import iequests
 import time
 from pydub import AudioSegment
 from pydub.playback import play
@@ -447,7 +447,7 @@ def write_nfc(pn532, json_data, start_page=4):
     byte_data = json.dumps(json_data).encode()
 
     # Prepend the length of byte_data using 2 bytes
-    length_bytes = len(byte_data).to_bytes(2, 'big')  # 2 bytes for up to 65535
+    length_bytes = len(byte_data).to_bytes(2, 'big')
     byte_data = length_bytes + byte_data
 
     # Define the page size (typically 4 bytes for NFC tags)
@@ -458,20 +458,15 @@ def write_nfc(pn532, json_data, start_page=4):
 
     # Write data to NFC tag
     for i in range(num_pages):
-        # Calculate page index
         page = start_page + i
-
-        # Get the byte chunk to write
-        chunk = byte_data[i*page_size:(i+1)*page_size]
+        chunk = byte_data[i * page_size:(i + 1) * page_size]
 
         # Pad the chunk with zeros if it's less than the page size
-        while len(chunk) < page_size:
-            chunk += b'\x00'
+        if len(chunk) < page_size:
+            chunk += b'\x00' * (page_size - len(chunk))
 
-        # Write the chunk to the tag
         write_to_nfc_tag(pn532, page, list(chunk))
 
-    logger.info("JSON string written to NFC tag")
 
 
 def write_to_nfc_tag(pn532, page, data):
