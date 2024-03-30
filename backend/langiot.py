@@ -442,9 +442,9 @@ def is_valid_json(json_str):
     except json.JSONDecodeError:
         return False
 
-def write_nfc(pn532, json_str, start_page=4):
-    # Convert string to bytes
-    byte_data = json_str.encode()
+def write_nfc(pn532, json_data, start_page=4):
+    # Convert dictionary to JSON string and then to bytes
+    byte_data = json.dumps(json_data).encode()
 
     # Prepend the length of byte_data using 2 bytes
     length_bytes = len(byte_data).to_bytes(2, 'big')  # 2 bytes for up to 65535
