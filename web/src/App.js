@@ -210,23 +210,21 @@ function App() {
   };
 
   const performHttpRequest = async () => {
+    setAudio(null)
     if (!isValidJson()) {
       alert('Please ensure all fields have text and languages selected');
       return;
     }
-  
-    if (soundFileUrl && !isValidAudioFileUrl(soundFileUrl)) {
-      alert('Please provide a valid URL for an audio file (.mp3, .wav, .m4a, .ogg)');
-      return;
-    }
-  
+
     try {
       const jsonStr = generateJson();
-      const jsonData = JSON.parse(jsonStr);
-  
-      console.log('Sending JSON:', jsonData);
-      setJsonDisplay(JSON.stringify(jsonData));
+      console.log('Sending JSON:', jsonStr);
+      setJsonDisplay(jsonStr);
 
+      // Parse the JSON string into an object
+      const jsonData = JSON.parse(jsonStr);
+
+      // Send the JSON object directly
       const response = await axios.post('/perform_http_request', jsonData, { responseType: 'blob' });
       console.log('Received response:', response);
 

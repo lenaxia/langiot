@@ -354,7 +354,7 @@ def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 
     except Exception as e:
         logger.error(f"Error creating audio playback thread: {e}")
 
-def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
+def generate_beep(frequency=1000, duration=0.2, volume=0.1, sample_rate=44100):
     # Generate a sine wave
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     wave = np.sin(2 * np.pi * frequency * t)
