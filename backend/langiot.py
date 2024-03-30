@@ -551,58 +551,58 @@ def main():
     beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
     play(beep_sound)
 
-def read_loop():
-    nonlocal last_uid
-    while True:
-        try:
-            nfc_data = check_for_nfc_tag(pn532)
-            if nfc_data and nfc_data != last_uid:
-                last_uid = nfc_data
-                logger.info("New NFC tag detected, processing.")
-                full_memory = read_tag_memory(pn532, start_page=4)
-                logger.info("Tag memory read, processing data.")
-                beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
-                play(beep_sound)
-
-                if full_memory:
-                    parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
-                    if parsed_data:
-                        logger.info(f"Parsed data: {parsed_data}")
-
-                        sound_file_thread = None
-                        sound_file_url = parsed_data.get('soundFileUrl')
-                        if sound_file_url:
-                            logger.info(f"Starting download of sound file from URL: {sound_file_url}")
-                            sound_file_thread = threading.Thread(target=download_sound_file, args=(sound_file_url,))
-                            sound_file_thread.start()
-
-                        server_audio_data = perform_http_request(parsed_data)
-                        if server_audio_data:
-                            logger.info("Server audio data received, starting playback.")
-                            play_audio(server_audio_data)
-
-                        if sound_file_thread:
-                            sound_file_thread.join()
-                            local_audio_file_path = '/tmp/local_audio.mp3'  # Path where the audio file is downloaded
-                            logger.info(f"Checking for local audio file at path: {local_audio_file_path}")
-                            if is_valid_audio_file(local_audio_file_path):
-                                logger.info("Local audio file validated, loading data for playback.")
-                                local_audio_data = get_downloaded_audio_data(local_audio_file_path)  # Assuming a function that takes the file path as an argument
-                                if local_audio_data:
-                                    logger.info("Local audio data loaded, starting playback.")
-                                    play_audio(local_audio_data)
+    def read_loop():
+        nonlocal last_uid
+        while True:
+            try:
+                nfc_data = check_for_nfc_tag(pn532)
+                if nfc_data and nfc_data != last_uid:
+                    last_uid = nfc_data
+                    logger.info("New NFC tag detected, processing.")
+                    full_memory = read_tag_memory(pn532, start_page=4)
+                    logger.info("Tag memory read, processing data.")
+                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
+                    play(beep_sound)
+    
+                    if full_memory:
+                        parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
+                        if parsed_data:
+                            logger.info(f"Parsed data: {parsed_data}")
+    
+                            sound_file_thread = None
+                            sound_file_url = parsed_data.get('soundFileUrl')
+                            if sound_file_url:
+                                logger.info(f"Starting download of sound file from URL: {sound_file_url}")
+                                sound_file_thread = threading.Thread(target=download_sound_file, args=(sound_file_url,))
+                                sound_file_thread.start()
+    
+                            server_audio_data = perform_http_request(parsed_data)
+                            if server_audio_data:
+                                logger.info("Server audio data received, starting playback.")
+                                play_audio(server_audio_data)
+    
+                            if sound_file_thread:
+                                sound_file_thread.join()
+                                local_audio_file_path = '/tmp/local_audio.mp3'  # Path where the audio file is downloaded
+                                logger.info(f"Checking for local audio file at path: {local_audio_file_path}")
+                                if is_valid_audio_file(local_audio_file_path):
+                                    logger.info("Local audio file validated, loading data for playback.")
+                                    local_audio_data = get_downloaded_audio_data(local_audio_file_path)  # Assuming a function that takes the file path as an argument
+                                    if local_audio_data:
+                                        logger.info("Local audio data loaded, starting playback.")
+                                        play_audio(local_audio_data)
+                                    else:
+                                        logger.error("Failed to load local audio data.")
                                 else:
-                                    logger.error("Failed to load local audio data.")
-                            else:
-                                logger.warning("Downloaded audio file is not valid and will not be played.")
-
-                            cleanup_downloaded_audio_file()
-                            logger.info("Cleanup of downloaded audio file completed.")
-
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
-
-        time.sleep(1)
+                                    logger.warning("Downloaded audio file is not valid and will not be played.")
+    
+                                cleanup_downloaded_audio_file()
+                                logger.info("Cleanup of downloaded audio file completed.")
+    
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+    
+            time.sleep(1)
 
 
     read_thread = threading.Thread(target=read_loop)
