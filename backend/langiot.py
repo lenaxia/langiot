@@ -134,7 +134,8 @@ def play_audio_endpoint():
 
 @app.route('/handle_write', methods=['POST'])
 def handle_write_endpoint():
-    json_str = request.json.get('json_str')
+    #json_str = request.json.get('json_str')
+    json_str = request.json
     handle_write_request(json_str)
     return jsonify({"message": "Write to NFC tag initiated"}), 200
 
@@ -289,7 +290,7 @@ def handle_write_request(json_str):
     read_pause_event.set()  # Pause the read loop
     time.sleep(1)  # Allow time for read loop to pause
     write_nfc(pn532, json_str)  # Perform the write operation
-    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
     play(beep_sound)
     read_pause_event.clear()  # Resume the read loop
 
@@ -549,7 +550,7 @@ def main():
     global read_thread
     last_uid = None
     logger.info("Script started, waiting for NFC tag.")
-    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
     play(beep_sound)
 
     def read_loop():
@@ -562,7 +563,7 @@ def main():
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
                     logger.info("Tag memory read, processing data.")
-                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
                     play(beep_sound)
 
                     if full_memory:
