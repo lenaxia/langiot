@@ -165,7 +165,10 @@ cd "$APP_DIR" || exit
 
 # Prepare for update: back up the current tarball
 if [ -f "$LATEST_TARBALL" ]; then
+    # Use CURRENT_TAG to name the backup of the current tarball
+    PREVIOUS_TARBALL="$TARBALL_DIR/$APP_NAME-$CURRENT_TAG.tar.gz"
     mv "$LATEST_TARBALL" "$PREVIOUS_TARBALL"
+    log_message "Backing up current tarball to $PREVIOUS_TARBALL"
 fi
 
 # Download the new tarball
