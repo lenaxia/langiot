@@ -84,12 +84,15 @@ cleanup_old_tarballs() {
 
 # Function to check and restart the service
 restart_service() {
-    if [ "$SIMULATE_FAILURE" = false ]; then
-        sudo systemctl restart "$SERVICE_NAME"
-    fi
-    if [ "$SIMULATE_FAILURE" = true ] || ! systemctl is-active --quiet "$SERVICE_NAME"; then
-        log_message "Simulating service failure or service failed to start..."
+    if [ "$SIMULATE_FAILURE" = "true" ]; then
+        log_message "Simulating service failure..."
         return 1
+    else
+        sudo systemctl restart "$SERVICE_NAME"
+        if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+            log_message "Service failed to start..."
+            return 1
+        fi
     fi
     return 0
 }
@@ -114,9 +117,9 @@ while getopts ":u:a:r:d:l:s:t:p:n:c:e:fh" opt; do
   esac
 done
 
-# Start the script logic
-if [ "$#" -eq 0 ]; then
-    show_help
+# If the help option is not called, proceed with the script
+if [ "$OPTIND" -eq 1 ]; then
+    log_message "Proceeding with default configuration..."
 fi
 
 # Ensure necessary directories and files exist
