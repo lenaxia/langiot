@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test configurations
-APP_DIR="/tmp/test_app_dir"
+APP_DIR="$PWD/.."
 LOG_FILE="$APP_DIR/test_update.log"
 TARBALL_DIR="$APP_DIR/tarballs"
 SERVICE_NAME="test_langiot_service"
@@ -38,7 +38,9 @@ run_test() {
 # Cleanup function
 cleanup() {
     echo -e "${GREEN}Cleaning up test environment...${NC}"
-    rm -rf "$APP_DIR"  # Remove the entire application directory created for tests
+    rm -f "$LOG_FILE"  # Remove the test-specific log file
+    rm -rf "$TARBALL_DIR"/*  # Remove tarballs created during the test
+    # Remove any other temporary files or services created during the tests
 }
 
 # Ensure cleanup is performed even if the script exits prematurely
