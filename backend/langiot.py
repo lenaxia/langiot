@@ -598,6 +598,8 @@ def main():
     
                                 cleanup_downloaded_audio_file()
                                 logger.info("Cleanup of downloaded audio file completed.")
+                elif not nfc_data:
+                    last_uid = None
     
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
