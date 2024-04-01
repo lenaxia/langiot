@@ -49,8 +49,8 @@ log_message() {
 
 # Function to compare semantic versions
 compare_versions() {
-    local version1=$1
-    local version2=$2
+    local version1=$(echo "$1" | xargs)  # Strip leading and trailing whitespace from the first argument
+    local version2=$(echo "$2" | xargs)  # Strip leading and trailing whitespace from the second argument
 
     # Check if the version strings are valid semantic versions
     if ! [[ "$version1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -61,6 +61,11 @@ compare_versions() {
     if ! [[ "$version2" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "Error: Invalid latest version format: $version2" >&2
         return 1
+    fi
+
+    # Check if both versions are the same
+    if [ "$version1" = "$version2" ]; then
+        return 2  # Return 2 when versions are the same
     fi
 
     # Compare the versions using sort -V and tail
@@ -142,12 +147,19 @@ log_message "Latest version: $LATEST_TAG"
 
 # Update process
 # Validate and compare versions
-if ! compare_versions "$CURRENT_TAG" "$LATEST_TAG"; then
-    log_message "Current version $CURRENT_TAG is up-to-date. No update required."
+compare_versions "$CURRENT_TAG" "$LATEST_TAG"
+result=$?
+
+if [ $result -eq 2 ]; then
+    log_message "Current version $CURRENT_TAG is the same as the latest version. No update required."
+    exit 0
+elif [ $result -eq 0 ]; then
+    log_message "New version detected: $LATEST_TAG. Starting update process..."
+    # Proceed with update
+else
+    log_message "Current version $CURRENT_TAG is up-to-date or newer. No update required."
     exit 0
 fi
-
-log_message "New version detected: $LATEST_TAG. Starting update process..."
 
 cd "$APP_DIR" || exit
 
