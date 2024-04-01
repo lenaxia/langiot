@@ -22,16 +22,16 @@ jobs:
       with:
         python-version: '3.x'
 
-          #- name: Install system dependencies for building
-          #  run: sudo apt-get update && sudo apt-get install -y libasound2-dev ffmpeg libatlas-base-dev
+    - name: Install system dependencies for building
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev ffmpeg libatlas-base-dev
 
-          #- name: Create and activate Python virtual environment
-          #  run: |
-          #    python -m venv venv
-          #    source venv/bin/activate
-          #    pip install -r requirements.txt
-          #    deactivate
-          #  working-directory: ./backend
+    - name: Create and activate Python virtual environment
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+        deactivate
+      working-directory: ./backend
 
     - name: Set up Node.js 20
       uses: actions/setup-node@v3
@@ -55,7 +55,7 @@ jobs:
 
     - name: Package Application including the venv
       run: |
-        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./version.txt ./update.sh
+        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./version.txt ./update.sh ./.git
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
