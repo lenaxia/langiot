@@ -173,12 +173,7 @@ fi
 REPO_OWNER=$(echo "$REPO_URL" | sed -n 's#.*/\([^/]*\)/\([^/]*\)\(\.git\)*$#\1#p')
 REPO_NAME=$(echo "$REPO_URL" | sed -n 's#.*/\([^/]*\)/\([^/]*\)\(\.git\)*$#\2#p')
 release_info=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$LATEST_TAG")
-log_message "Raw JSON response:"
-log_message "$release_info"
-echo "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$LATEST_TAG"
 download_url=$(echo "$release_info" | jq -r '.assets[]? | select(.name == "langiot-package.tar.gz") | .browser_download_url')
-log_message "Download URL:"
-log_message "$download_url"
 
 # Check if the download URL is valid
 if [ -z "$download_url" ] || [ "$download_url" == "null" ]; then
