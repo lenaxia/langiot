@@ -55,7 +55,7 @@ jobs:
 
     - name: Package Application including the venv
       run: |
-        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./version.txt
+        tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./version.txt ./update.sh
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
