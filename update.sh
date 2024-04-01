@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Default Configuration Variables
-USER="yin"
+USER="$USER"
 APP_NAME="langiot"
-REPO_URL="https://github.com/lenaxia/langiot.git"
+REPO_URL="https://github.com/lenaxia/langiot"
 APP_DIR="/home/$USER/$APP_NAME"
 LOG_FILE="$APP_DIR/update.log"
 MAX_LOG_SIZE=1048576  # 1MB in bytes
@@ -46,6 +46,31 @@ log_message() {
     fi
     echo "$(date): $1" | tee -a "$LOG_FILE"
 }
+
+# Function to compare semantic versions
+compare_versions() {
+    local version1=$1
+    local version2=$2
+
+    # Check if the version strings are valid semantic versions
+    if ! [[ "$version1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: Invalid current version format: $version1" >&2
+        return 1
+    fi
+
+    if ! [[ "$version2" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: Invalid latest version format: $version2" >&2
+        return 1
+    fi
+
+    # Compare the versions using sort -V and tail
+    if [ "$(printf "%s\n%s" "$version1" "$version2" | sort -V | tail -n1)" = "$version2" ]; then
+        return 0 # version2 is higher than version1
+    else
+        return 1 # version1 is higher or equal to version2
+    fi
+}
+
 
 # Cleanup function to retain only the newest two tarballs
 cleanup_old_tarballs() {
@@ -102,7 +127,8 @@ log_message "Starting update check..."
 
 # Get the current and latest tags (if not overridden)
 if [ -z "$CURRENT_TAG" ]; then
-    CURRENT_TAG=$(git -C "$APP_DIR" describe --tags `git rev-list --tags --max-count=1`)
+    #CURRENT_TAG=$(git -C "$APP_DIR" describe --tags `git rev-list --tags --max-count=1`)
+    CURRENT_TAG=$(cat "$APP_DIR/version.txt")
 fi
 if [ -z "$LATEST_TAG" ]; then
     LATEST_TAG=$(git ls-remote --tags "$REPO_URL" | cut -d/ -f3 | sort -V | tail -n1)
@@ -112,44 +138,61 @@ log_message "Current version: $CURRENT_TAG"
 log_message "Latest version: $LATEST_TAG"
 
 # Update process
-if [ "$LATEST_TAG" != "$CURRENT_TAG" ]; then
-    log_message "New version detected: $LATEST_TAG. Starting update process..."
-
-    cd "$APP_DIR" || exit
-
-    # Prepare for update: back up the current tarball
-    if [ -f "$LATEST_TARBALL" ]; then
-        mv "$LATEST_TARBALL" "$PREVIOUS_TARBALL"
-    fi
-
-    # Download the new tarball
-    assets_url=$(curl -s "https://api.github.com/repos/$(basename $REPO_URL)/releases/tags/$LATEST_TAG")
-    download_url=$(echo "$assets_url" | jq -r '.assets[] | select(.name == "langiot-package.tar.gz") | .browser_download_url')
-    wget -O "$LATEST_TARBALL" "$download_url"
-
-    # Extract the new tarball and check the operation
-    tar -xzvf "$LATEST_TARBALL" || { log_message "Extraction failed"; exit 1; }
-
-    # Restart and check the service
-    if restart_service; then
-        log_message "Update to version $LATEST_TAG completed successfully. Service is running."
-    else
-        # Attempt to recover from the previous version if the update fails
-        if [ -f "$PREVIOUS_TARBALL" ]; then
-            tar -xzvf "$PREVIOUS_TARBALL" -C "$APP_DIR" || { log_message "Rollback failed"; exit 1; }
-            if restart_service; then
-                log_message "Successfully reverted to the previous version."
-            else
-                log_message "Service failed to start after revert. Manual intervention required."
-            fi
-        else
-            log_message "No previous version to revert to. Manual intervention required."
-        fi
-    fi
-
-    # Cleanup old tarballs after the update or rollback
-    cleanup_old_tarballs
-else
+# Validate and compare versions
+if ! compare_versions "$CURRENT_TAG" "$LATEST_TAG"; then
     log_message "Current version $CURRENT_TAG is up-to-date. No update required."
+    exit 0
 fi
 
+log_message "New version detected: $LATEST_TAG. Starting update process..."
+
+cd "$APP_DIR" || exit
+
+# Prepare for update: back up the current tarball
+if [ -f "$LATEST_TARBALL" ]; then
+    mv "$LATEST_TARBALL" "$PREVIOUS_TARBALL"
+fi
+
+# Download the new tarball
+# Extract the owner and repository name from the URL, removing the optional .git suffix
+REPO_OWNER=$(echo "$REPO_URL" | sed -n 's#.*/\([^/]*\)/\([^/]*\)\(\.git\)*$#\1#p')
+REPO_NAME=$(echo "$REPO_URL" | sed -n 's#.*/\([^/]*\)/\([^/]*\)\(\.git\)*$#\2#p')
+release_info=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$LATEST_TAG")
+log_message "Raw JSON response:"
+log_message "$release_info"
+echo "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$LATEST_TAG"
+download_url=$(echo "$release_info" | jq -r '.assets[]? | select(.name == "langiot-package.tar.gz") | .browser_download_url')
+log_message "Download URL:"
+log_message "$download_url"
+
+# Check if the download URL is valid
+if [ -z "$download_url" ] || [ "$download_url" == "null" ]; then
+    log_message "Error: No valid download URL found for the latest release."
+    exit 1
+fi
+
+wget -O "$LATEST_TARBALL" "$download_url"
+
+
+# Extract the new tarball and check the operation
+tar -xzvf "$LATEST_TARBALL" || { log_message "Extraction failed"; exit 1; }
+
+# Restart and check the service
+if restart_service; then
+    log_message "Update to version $LATEST_TAG completed successfully. Service is running."
+else
+    # Attempt to recover from the previous version if the update fails
+    if [ -f "$PREVIOUS_TARBALL" ]; then
+        tar -xzvf "$PREVIOUS_TARBALL" -C "$APP_DIR" || { log_message "Rollback failed"; exit 1; }
+        if restart_service; then
+            log_message "Successfully reverted to the previous version."
+        else
+            log_message "Service failed to start after revert. Manual intervention required."
+        fi
+    else
+        log_message "No previous version to revert to. Manual intervention required."
+    fi
+fi
+
+# Cleanup old tarballs after the update or rollback
+cleanup_old_tarballs

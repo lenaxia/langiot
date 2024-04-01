@@ -134,8 +134,7 @@ def play_audio_endpoint():
 
 @app.route('/handle_write', methods=['POST'])
 def handle_write_endpoint():
-    #json_str = request.json.get('json_str')
-    json_str = request.json
+    json_str = request.json.get('json_str')
     handle_write_request(json_str)
     return jsonify({"message": "Write to NFC tag initiated"}), 200
 
@@ -286,11 +285,10 @@ def update_configuration(new_config):
 
 
 def handle_write_request(json_str):
-    logger.info(f"json: {json_str}")
     read_pause_event.set()  # Pause the read loop
     time.sleep(1)  # Allow time for read loop to pause
     write_nfc(pn532, json_str)  # Perform the write operation
-    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
     play(beep_sound)
     read_pause_event.clear()  # Resume the read loop
 
@@ -355,7 +353,7 @@ def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 
     except Exception as e:
         logger.error(f"Error creating audio playback thread: {e}")
 
-def generate_beep(frequency=1000, duration=0.2, volume=0.1, sample_rate=44100):
+def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
     # Generate a sine wave
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     wave = np.sin(2 * np.pi * frequency * t)
@@ -442,12 +440,12 @@ def is_valid_json(json_str):
     except json.JSONDecodeError:
         return False
 
-def write_nfc(pn532, json_data, start_page=4):
-    # Convert dictionary to JSON string and then to bytes
-    byte_data = json.dumps(json_data).encode()
+def write_nfc(pn532, json_str, start_page=4):
+    # Convert string to bytes
+    byte_data = json_str.encode()
 
     # Prepend the length of byte_data using 2 bytes
-    length_bytes = len(byte_data).to_bytes(2, 'big')
+    length_bytes = len(byte_data).to_bytes(2, 'big')  # 2 bytes for up to 65535
     byte_data = length_bytes + byte_data
 
     # Define the page size (typically 4 bytes for NFC tags)
@@ -458,18 +456,20 @@ def write_nfc(pn532, json_data, start_page=4):
 
     # Write data to NFC tag
     for i in range(num_pages):
+        # Calculate page index
         page = start_page + i
-        chunk = byte_data[i * page_size:(i + 1) * page_size]
+
+        # Get the byte chunk to write
+        chunk = byte_data[i*page_size:(i+1)*page_size]
 
         # Pad the chunk with zeros if it's less than the page size
-        if len(chunk) < page_size:
-            chunk += b'\x00' * (page_size - len(chunk))
+        while len(chunk) < page_size:
+            chunk += b'\x00'
 
+        # Write the chunk to the tag
         write_to_nfc_tag(pn532, page, list(chunk))
 
-        # Add a delay between write operations to slow down the speed
-        time.sleep(0.1)  # Adjust the delay as needed
-
+    logger.info("JSON string written to NFC tag")
 
 
 def write_to_nfc_tag(pn532, page, data):
@@ -548,7 +548,7 @@ def main():
     global read_thread
     last_uid = None
     logger.info("Script started, waiting for NFC tag.")
-    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
     play(beep_sound)
 
     def read_loop():
@@ -561,51 +561,44 @@ def main():
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
                     logger.info("Tag memory read, processing data.")
-                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
+                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
                     play(beep_sound)
-    
+
                     if full_memory:
                         parsed_data = parse_tag_data(full_memory.decode('utf-8').rstrip('\x00'))
                         if parsed_data:
                             logger.info(f"Parsed data: {parsed_data}")
-    
+
                             sound_file_thread = None
                             sound_file_url = parsed_data.get('soundFileUrl')
                             if sound_file_url:
-                                logger.info(f"Starting download of sound file from URL: {sound_file_url}")
                                 sound_file_thread = threading.Thread(target=download_sound_file, args=(sound_file_url,))
                                 sound_file_thread.start()
-    
+
                             server_audio_data = perform_http_request(parsed_data)
                             if server_audio_data:
                                 logger.info("Server audio data received, starting playback.")
                                 play_audio(server_audio_data)
-    
+
                             if sound_file_thread:
                                 sound_file_thread.join()
                                 local_audio_file_path = '/tmp/local_audio.mp3'  # Path where the audio file is downloaded
-                                logger.info(f"Checking for local audio file at path: {local_audio_file_path}")
                                 if is_valid_audio_file(local_audio_file_path):
-                                    logger.info("Local audio file validated, loading data for playback.")
-                                    local_audio_data = get_downloaded_audio_data(local_audio_file_path)  # Assuming a function that takes the file path as an argument
+                                    local_audio_data = get_downloaded_audio_data()
                                     if local_audio_data:
-                                        logger.info("Local audio data loaded, starting playback.")
+                                        logger.info("Local audio data validated and available, starting playback.")
                                         play_audio(local_audio_data)
-                                    else:
-                                        logger.error("Failed to load local audio data.")
                                 else:
                                     logger.warning("Downloaded audio file is not valid and will not be played.")
-    
+
                                 cleanup_downloaded_audio_file()
-                                logger.info("Cleanup of downloaded audio file completed.")
+
                 elif not nfc_data:
                     last_uid = None
-    
+
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
-    
             time.sleep(1)
-
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()

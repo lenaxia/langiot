@@ -190,7 +190,7 @@ git config --global pull.rebase false
 log_message "Setting up a weekly cron job for repository updates..."
 
 # Define the cron job command
-CRON_JOB_COMMAND="cd $APP_DIR && bash install.sh > /dev/null 2>&1"
+CRON_JOB_COMMAND="cd $APP_DIR && git pull && bash update.sh > /dev/null 2>&1"
 
 # Export existing crontab to a temporary file
 TEMP_CRONTAB=$(mktemp)
