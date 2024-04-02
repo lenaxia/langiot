@@ -1,24 +1,24 @@
-#import requests
-#import time
-#from pydub import AudioSegment
-#from pydub.playback import play
-#import numpy as np
-#import json
-#import re
-#import io
-#import os
-#import signal
-#import sys
-#import board
-#import busio
-#import logging
-#import configparser
-#import threading
-#from flask import Flask, request, jsonify, send_file, send_from_directory
-#from flask_cors import CORS
-#from digitalio import DigitalInOut
-#from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
-#import subprocess
+import requests
+import time
+from pydub import AudioSegment
+from pydub.playback import play
+import numpy as np
+import json
+import re
+import io
+import os
+import signal
+import sys
+import board
+import busio
+import logging
+import configparser
+import threading
+from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask_cors import CORS
+from digitalio import DigitalInOut
+from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
+import subprocess
 
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
 #os.environ['SDL_AUDIODRIVER'] = 'dummy'

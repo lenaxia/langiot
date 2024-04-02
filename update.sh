@@ -262,7 +262,7 @@ if [ -f "$LATEST_TARBALL" ]; then
     # Only proceed with the backup if PREVIOUS_TARBALL does not already exist
     if [ ! -f "$PREVIOUS_TARBALL" ]; then
         mv "$LATEST_TARBALL" "$PREVIOUS_TARBALL"
-        log_message "Backing up current tarball to $PREVIOUS_TARBALL"
+        log_message "Backing up current tarball $LATEST_TARBALL to $PREVIOUS_TARBALL"
     else
         log_message "Backup for current tarball already exists, skipping backup."
     fi
