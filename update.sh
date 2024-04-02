@@ -49,31 +49,39 @@ log_message() {
 
 # Function to compare semantic versions
 compare_versions() {
-    local version1=$(echo "$1" | xargs)  # Strip leading and trailing whitespace from the first argument
-    local version2=$(echo "$2" | xargs)  # Strip leading and trailing whitespace from the second argument
+    # Strip non-numeric prefix (like 'v') before comparison
+    local ver1_str=${1#v}
+    local ver2_str=${2#v}
 
-    # Check if the version strings are valid semantic versions
-    if ! [[ "$version1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "Error: Invalid current version format: $version1" >&2
-        return 1
+    if [[ $ver1_str == $ver2_str ]]
+    then
+        return 0
     fi
 
-    if ! [[ "$version2" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "Error: Invalid latest version format: $version2" >&2
-        return 1
-    fi
-
-    # Check if both versions are the same
-    if [ "$version1" = "$version2" ]; then
-        return 2  # Return 2 when versions are the same
-    fi
-
-    # Compare the versions using sort -V and tail
-    if [ "$(printf "%s\n%s" "$version1" "$version2" | sort -V | tail -n1)" = "$version2" ]; then
-        return 0 # version2 is higher than version1
-    else
-        return 1 # version1 is higher or equal to version2
-    fi
+    local IFS=.
+    local i ver1=($ver1_str) ver2=($ver2_str)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            return 2
+        fi
+    done
+    return 0  # Return 0 if versions are equal after comparison
 }
 
 
@@ -150,16 +158,17 @@ log_message "Latest version: $LATEST_TAG"
 compare_versions "$CURRENT_TAG" "$LATEST_TAG"
 result=$?
 
-if [ $result -eq 2 ]; then
+if [ $result -eq 0 ]; then
     log_message "Current version $CURRENT_TAG is the same as the latest version. No update required."
     exit 0
-elif [ $result -eq 0 ]; then
+elif [ $result -eq 2 ]; then
     log_message "New version detected: $LATEST_TAG. Starting update process..."
     # Proceed with update
 else
     log_message "Current version $CURRENT_TAG is up-to-date or newer. No update required."
     exit 0
 fi
+
 
 cd "$APP_DIR" || exit
 
