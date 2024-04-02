@@ -288,7 +288,7 @@ def handle_write_request(json_str):
     read_pause_event.set()  # Pause the read loop
     time.sleep(1)  # Allow time for read loop to pause
     write_nfc(pn532, json_str)  # Perform the write operation
-    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
     play(beep_sound)
     read_pause_event.clear()  # Resume the read loop
 
@@ -353,7 +353,7 @@ def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 
     except Exception as e:
         logger.error(f"Error creating audio playback thread: {e}")
 
-def generate_beep(frequency=1000, duration=0.2, volume=0.5, sample_rate=44100):
+def generate_beep(frequency=1000, duration=0.2, volume=0.1, sample_rate=44100):
     # Generate a sine wave
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     wave = np.sin(2 * np.pi * frequency * t)
@@ -543,12 +543,22 @@ def cleanup_downloaded_audio_file():
     except Exception as e:
         logger.error(f"Error deleting temporary audio file at {file_path}: {e}")
 
+def get_system_uptime_seconds():
+    with open("/proc/uptime", "r") as f:
+        uptime_seconds = float(f.readline().split()[0])
+    return uptime_seconds
+
 
 def main():
     global read_thread
     last_uid = None
     tag_cleared = False  # State to track if we have seen an empty cycle
     logger.info("Script started, waiting for NFC tag.")
+
+    # Play beep sound if system uptime is less than 5 minutes (300 seconds)
+    if get_system_uptime_seconds() < 300:
+        beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
+        play(beep_sound)
 
     def read_loop():
         nonlocal last_uid, tag_cleared
@@ -567,7 +577,7 @@ def main():
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
                     logger.info("Tag memory read, processing data.")
-                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
+                    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
                     play(beep_sound)
 
                     if full_memory:
