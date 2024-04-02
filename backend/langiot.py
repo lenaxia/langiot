@@ -547,16 +547,22 @@ def cleanup_downloaded_audio_file():
 def main():
     global read_thread
     last_uid = None
+    tag_cleared = False  # State to track if we have seen an empty cycle
     logger.info("Script started, waiting for NFC tag.")
-    beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.5)
-    play(beep_sound)
 
     def read_loop():
-        nonlocal last_uid
+        nonlocal last_uid, tag_cleared
         while True:
             try:
                 nfc_data = check_for_nfc_tag(pn532)
-                if nfc_data and nfc_data != last_uid:
+
+                # Check if no tag is present and update the tag_cleared state
+                if not nfc_data:
+                    last_uid = None
+                    tag_cleared = True
+
+                # Proceed if a new NFC tag is detected and the reader has been cleared at least once
+                elif nfc_data and nfc_data != last_uid and tag_cleared:
                     last_uid = nfc_data
                     logger.info("New NFC tag detected, processing.")
                     full_memory = read_tag_memory(pn532, start_page=4)
@@ -593,15 +599,14 @@ def main():
 
                                 cleanup_downloaded_audio_file()
 
-                elif not nfc_data:
-                    last_uid = None
-
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
             time.sleep(1)
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
+
+
 
 
 def signal_handler(sig, frame):
