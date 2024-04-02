@@ -214,7 +214,7 @@ fi
 rm "$TEMP_CRONTAB"
 
 # make the app folder
-mkdir -p $APP_DIR
+mkdir -p $APP_DIR/tarballs
 cd $APP_DIR
 
 # Get the latest release assets JSON from GitHub API
@@ -222,23 +222,9 @@ assets_url=$(curl -s https://api.github.com/repos/lenaxia/langiot/releases/lates
 # Fetch the browser_download_url for the specific asset (langiot-package.tar.gz)
 download_url=$(curl -s "${assets_url}" | jq -r '.[] | select(.name == "langiot-package.tar.gz") | .browser_download_url')
 # Use wget to download the tar.gz file
-wget -O langiot-package.tar.gz "${download_url}"
+wget -O $APP_DIR/tarballs/langiot-latest.tar.gz "${download_url}"
 
-tar -xzvf langiot-package.tar.gz
-
-## Build the React application
-#log_message "Building React application..."
-#cd "$APP_DIR/web" && npm install && npm run build 2>&1 | tee -a "$LOG_FILE"
-#if [ $? -ne 0 ]; then
-#    log_message "Failed to build the React application."
-#    exit 1
-#fi
-
-## Move to backend directory
-#cd "$APP_DIR/backend"
-#mkdir -p "$APP_DIR/backend/web"
-#rm -rf "$APP_DIR/backend/web/"*
-#mv "$APP_DIR/web/build/"* "$APP_DIR/backend/web"
+tar -xzvf $APP_DIR/tarballs/langiot-latest.tar.gz
 
 # Setup Python Virtual Environment
 log_message "Setting up Python Virtual Environment..."
