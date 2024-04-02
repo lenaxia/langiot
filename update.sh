@@ -97,17 +97,99 @@ cleanup_old_tarballs() {
 
 # Function to check and restart the service
 restart_service() {
+    local stability_check_interval=5  # Seconds to wait before re-checking the service status
+    local max_checks=3  # Number of times to check for stability
+    local check_count=0
+
     if [ "$SIMULATE_FAILURE" = "true" ]; then
         log_message "Simulating service failure..."
         return 1
     else
         sudo systemctl restart "$SERVICE_NAME"
-        if ! systemctl is-active --quiet "$SERVICE_NAME"; then
-            log_message "Service failed to start..."
-            return 1
-        fi
+        while [ $check_count -lt $max_checks ]; do
+            if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+                log_message "Service failed to start..."
+                return 1
+            fi
+            if systemctl --quiet is-failed "$SERVICE_NAME"; then
+                log_message "Service is in a failed state..."
+                return 1
+            fi
+
+            log_message "Service is active, checking for stability..."
+            sleep $stability_check_interval
+            ((check_count++))
+        done
     fi
+    log_message "Service has remained active for $(($stability_check_interval * $max_checks)) seconds. Assuming stability."
     return 0
+}
+
+# Function to attempt rollback
+attempt_rollback() {
+    local tarball_to_rollback="$1"
+    log_message "Attempting to roll back to $tarball_to_rollback..."
+    tar -xzvf "$tarball_to_rollback" -C "$APP_DIR" || return 1
+    if restart_service; then
+        log_message "Successfully reverted to $(basename "$tarball_to_rollback")."
+        return 0
+    else
+        log_message "Service failed to start after revert to $(basename "$tarball_to_rollback")."
+        return 1
+    fi
+}
+
+# Extract version from tarball filename
+extract_version() {
+    local filename="$1"
+    echo "$filename" | sed -E 's/.*-([0-9]+(\.[0-9]+)*).tar.gz/\1/'
+}
+
+# Compare and sort tarball versions
+sort_tarballs_by_version() {
+    local tarballs=("$@")
+    local sorted=()
+    local t version
+
+    for t in "${tarballs[@]}"; do
+        version=$(extract_version "$t")
+        local inserted=false
+        for ((i = 0; i < ${#sorted[@]}; i++)); do
+            compare_versions "$(extract_version "${sorted[i]}")" "$version"
+            if [ $? -eq 2 ]; then
+                sorted=("${sorted[@]:0:i}" "$t" "${sorted[@]:i}")
+                inserted=true
+                break
+            fi
+        done
+        if [ "$inserted" = false ]; then
+            sorted+=("$t")
+        fi
+    done
+
+    echo "${sorted[@]}"
+}
+
+# Function to handle the rollback process
+rollback_service() {
+    local all_tarballs=("$TARBALL_DIR/$APP_NAME"-*.tar.gz)
+    local sorted_tarballs=($(sort_tarballs_by_version "${all_tarballs[@]}"))
+
+    local attempts=0
+    for tarball in "${sorted_tarballs[@]}"; do
+        if [ "$attempts" -ge 2 ]; then
+            break
+        fi
+
+        if [ "$tarball" != "$LATEST_TARBALL" ]; then
+            if attempt_rollback "$tarball"; then
+                return 0
+            fi
+            ((attempts++))
+        fi
+    done
+
+    log_message "Rollback failed after two attempts. Manual intervention required."
 }
 
 # Parse command-line options
@@ -176,9 +258,16 @@ cd "$APP_DIR" || exit
 if [ -f "$LATEST_TARBALL" ]; then
     # Use CURRENT_TAG to name the backup of the current tarball
     PREVIOUS_TARBALL="$TARBALL_DIR/$APP_NAME-$CURRENT_TAG.tar.gz"
-    mv "$LATEST_TARBALL" "$PREVIOUS_TARBALL"
-    log_message "Backing up current tarball to $PREVIOUS_TARBALL"
+
+    # Only proceed with the backup if PREVIOUS_TARBALL does not already exist
+    if [ ! -f "$PREVIOUS_TARBALL" ]; then
+        mv "$LATEST_TARBALL" "$PREVIOUS_TARBALL"
+        log_message "Backing up current tarball to $PREVIOUS_TARBALL"
+    else
+        log_message "Backup for current tarball already exists, skipping backup."
+    fi
 fi
+
 
 # Download the new tarball
 # Extract the owner and repository name from the URL, removing the optional .git suffix
@@ -203,17 +292,7 @@ tar -xzvf "$LATEST_TARBALL" || { log_message "Extraction failed"; exit 1; }
 if restart_service; then
     log_message "Update to version $LATEST_TAG completed successfully. Service is running."
 else
-    # Attempt to recover from the previous version if the update fails
-    if [ -f "$PREVIOUS_TARBALL" ]; then
-        tar -xzvf "$PREVIOUS_TARBALL" -C "$APP_DIR" || { log_message "Rollback failed"; exit 1; }
-        if restart_service; then
-            log_message "Successfully reverted to the previous version."
-        else
-            log_message "Service failed to start after revert. Manual intervention required."
-        fi
-    else
-        log_message "No previous version to revert to. Manual intervention required."
-    fi
+    rollback_service
 fi
 
 # Cleanup old tarballs after the update or rollback
