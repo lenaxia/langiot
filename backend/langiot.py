@@ -556,7 +556,7 @@ def main():
     logger.info("Script started, waiting for NFC tag.")
 
     # Play beep sound if system uptime is less than 5 minutes (300 seconds)
-    if get_system_uptime_seconds() < 300:
+    if get_system_uptime_seconds() < 360:
         beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
         play(beep_sound)
 
