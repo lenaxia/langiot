@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Configuration Variables
-USER="yin"
 APP_NAME="langiot"
 REPO_URL="https://github.com/lenaxia/langiot.git"
 APP_DIR="/home/$USER/$APP_NAME"
@@ -57,23 +56,6 @@ fi
 
 # Remove unused packages
 sudo apt autoremove -y
-
-# Check if Python virtual environment already exists
-if [ -d "$APP_DIR/backend/venv" ]; then
-    log_message "Python virtual environment already exists. Skipping creation."
-else
-    log_message "Setting up Python Virtual Environment..."
-    python3 -m venv "$APP_DIR/backend/venv"
-fi
-
-# Activate the virtual environment
-source "$APP_DIR/backend/venv/bin/activate"
-
-# Optionally, check for updates to requirements.txt dependencies
-pip3 install --no-cache-dir -r "$APP_DIR/backend/requirements.txt"
-
-# Always deactivate the virtual environment
-deactivate
 
 log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry DAC audio..."
 
@@ -163,28 +145,6 @@ if [ "$(stat -c %a /etc/wpa_supplicant/wpa_supplicant.conf)" != "640" ]; then
     echo "Permissions of wpa_supplicant.conf set to 640"
 fi
 
-# Clone the repository
-git config --global pull.rebase false
-
-#log_message "Cloning repository..."
-#if [ -d "$APP_DIR" ]; then
-#    if [ -d "$APP_DIR/.git" ]; then
-#        log_message "Directory already exists and is a git repository. Pulling latest changes..."
-#        git -C "$APP_DIR" pull 2>&1 | tee -a "$LOG_FILE"
-#    else
-#        log_message "Directory already exists but is not a git repository. Removing and recloning..."
-#        rm -rf "$APP_DIR"
-#        git clone "$REPO_URL" "$APP_DIR" 2>&1 | tee -a "$LOG_FILE"
-#    fi
-#else
-#    git clone "$REPO_URL" "$APP_DIR" 2>&1 | tee -a "$LOG_FILE"
-#fi
-
-#if [ $? -ne 0 ]; then
-#    log_message "Failed to clone the repository."
-#    exit 1
-#fi
-
 # Set up a cron job for weekly updates
 # We want this to be smart enough to not add duplicate contab entries
 log_message "Setting up a weekly cron job for repository updates..."
@@ -228,15 +188,22 @@ tar -xzvf $APP_DIR/tarballs/langiot-latest.tar.gz
 
 # Setup Python Virtual Environment
 log_message "Setting up Python Virtual Environment..."
+
+# Check if Python virtual environment already exists
+if [ -d "$APP_DIR/backend/venv" ]; then
+    log_message "Python virtual environment already exists. Skipping creation."
+else
+    log_message "Setting up Python Virtual Environment..."
+    python3 -m venv "$APP_DIR/backend/venv"
+fi
+
 cd "$APP_DIR/backend"
 python3 -m venv venv
 source venv/bin/activate
-pip3 install --no-cache-dir -r requirements.txt
-pip3 install RPi.GPIO
-if [ $? -ne 0 ]; then
+pip3 install --no-cache-dir -r "$APP_DIR/backend/requirements.txt" && pip3 install RPi.GPIO || {
     log_message "Failed to install Python dependencies."
     exit 1
-fi
+}
 
 # Deactivate virtual environment
 deactivate
