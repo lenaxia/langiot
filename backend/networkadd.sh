@@ -24,8 +24,8 @@ fi
     echo "    ssid=\"$SSID\""
     echo "    psk=\"$PSK\""
     echo "    key_mgmt=$KEY_MGMT"
-    echo "}"
-} >> /etc/wpa_supplicant/wpa_supplicant.conf
+    echo -e "}\n"
+} >> $CONFIG_FILE
 } >> $CONFIG_FILE
 
 if [ $? -eq 0 ]; then
