@@ -63,5 +63,7 @@ test_add_network
 
 # Cleanup
 rm $MOCK_WPA_CONF
-rm $MOCK_LOG_FILE
+if [ -f $MOCK_LOG_FILE ]; then
+    rm $MOCK_LOG_FILE
+fi
 rm $MOCK_LOG_FILE
