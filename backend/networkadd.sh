@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define log file
-LOG_FILE="/var/log/wifi_network_management.log"
+LOG_FILE="${LOG_FILE:-/var/log/wifi_network_management.log}"
 
 # Function to log messages
 log_message() {
