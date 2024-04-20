@@ -37,6 +37,24 @@ BEGIN {skip=0}
         print block
     }
 }
+awk -v ssid="$SSID" '
+BEGIN {skip=0}
+/network={/ {block=""; skip=0}
+{
+    if (skip == 0) {
+        block=block ORS $0
+    }
+}
+/ssid="'"'"'"/ {
+    if ($0 ~ "ssid=\"'"'"'" ssid "'"'"'\"") {
+        skip=1
+    }
+}
+/}/ {
+    if (skip == 0) {
+        print block
+    }
+}
 ' $CONFIG_FILE > $TEMP_FILE
 
 if [ $? -eq 0 ]; then
