@@ -26,6 +26,13 @@ fi
 } >> /etc/wpa_supplicant/wpa_supplicant.conf
 
 if [ $? -eq 0 ]; then
+    wpa_cli -i wlan0 reconfigure
+    if [ $? -eq 0 ]; then
+        log_message "Wi-Fi settings reloaded successfully."
+    else
+        log_message "Failed to reload Wi-Fi settings."
+        exit 3
+    fi
     log_message "Successfully added network $SSID."
 else
     log_message "Failed to add network $SSID."
