@@ -18,7 +18,25 @@ fi
 CONFIG_FILE="/etc/wpa_supplicant/wpa_supplicant.conf"
 TEMP_FILE="/tmp/wpa_supplicant.conf.tmp"
 
-grep -v -F "$SSID" $CONFIG_FILE > $TEMP_FILE
+awk -v ssid="$SSID" '
+BEGIN {skip=0}
+/network={/ {block=""; skip=0}
+{
+    if (skip == 0) {
+        block=block ORS $0
+    }
+}
+/ssid="'"'"'"/ {
+    if ($0 ~ "ssid=\"'"'"'" ssid "'"'"'\"") {
+        skip=1
+    }
+}
+/}/ {
+    if (skip == 0) {
+        print block
+    }
+}
+' $CONFIG_FILE > $TEMP_FILE
 
 if [ $? -eq 0 ]; then
     mv $TEMP_FILE $CONFIG_FILE
