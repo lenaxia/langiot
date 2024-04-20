@@ -8,6 +8,9 @@ log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> $LOG_FILE
 }
 
+CONFIG_FILE="${2:-/etc/wpa_supplicant/wpa_supplicant.conf}"
+TEMP_FILE="/tmp/wpa_supplicant.conf.tmp"
+
 SSID="$1"
 
 if [[ -z "$SSID" ]]; then
@@ -15,8 +18,6 @@ if [[ -z "$SSID" ]]; then
     exit 1
 fi
 
-CONFIG_FILE="/etc/wpa_supplicant/wpa_supplicant.conf"
-TEMP_FILE="/tmp/wpa_supplicant.conf.tmp"
 
 awk -v ssid="$SSID" '
 BEGIN {skip=0}

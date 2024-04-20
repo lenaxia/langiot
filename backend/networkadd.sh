@@ -8,9 +8,11 @@ log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> $LOG_FILE
 }
 
+CONFIG_FILE="${3:-/etc/wpa_supplicant/wpa_supplicant.conf}"
+
 SSID="$1"
 PSK="$2"
-KEY_MGMT="${3:-WPA-PSK}"
+KEY_MGMT="${4:-WPA-PSK}"
 
 if [[ -z "$SSID" || -z "$PSK" ]]; then
     log_message "SSID or PSK not provided for network addition."
@@ -24,6 +26,7 @@ fi
     echo "    key_mgmt=$KEY_MGMT"
     echo "}"
 } >> /etc/wpa_supplicant/wpa_supplicant.conf
+} >> $CONFIG_FILE
 
 if [ $? -eq 0 ]; then
     wpa_cli -i wlan0 reconfigure
