@@ -16,7 +16,7 @@ KEY_MGMT="${4:-WPA-PSK}"
 
 if [[ -n "$SSID" && -n "$PSK" ]]; then
     {
-        echo -e "\nnetwork={\n    ssid=\"$(printf '%q' "$SSID")\"\n    psk=\"$(printf '%q' "$PSK")\"\n    key_mgmt=$KEY_MGMT\n}" >> $CONFIG_FILE && \
+        echo -e "\nnetwork={\n    ssid=\"$SSID\"\n    psk=\"$PSK\"\n    key_mgmt=$KEY_MGMT\n}" >> $CONFIG_FILE && \
         wpa_cli -i wlan0 reconfigure >> $LOG_FILE 2>&1 && \
         log_message "Successfully added network $SSID and reloaded Wi-Fi settings." || \
         { log_message "Failed to reload Wi-Fi settings for $SSID."; exit 3; }
