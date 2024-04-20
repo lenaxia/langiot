@@ -17,7 +17,7 @@ add_network() {
 # Function to delete a network
 delete_network() {
     SSID=$1
-    bash networkdelete.sh $SSID
+    bash networkdelete.sh $SSID $MOCK_WPA_CONF
 }
 
 # Setup: Add a network to delete

@@ -11,7 +11,7 @@ add_network() {
     SSID=$1
     PSK=$2
     KEY_MGMT=$3
-    bash networkadd.sh $SSID $PSK $KEY_MGMT
+    bash networkadd.sh $SSID $PSK $KEY_MGMT $MOCK_WPA_CONF
 }
 
 # Test adding a network
