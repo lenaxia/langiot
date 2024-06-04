@@ -11,8 +11,12 @@ log_message() {
 # Function to clean up networks
 cleanup_networks() {
     log_message "Cleaning up networks..."
-    nmcli con show | awk '/wifi/ {print $1}' | xargs -n1 nmcli con delete
+    EXISTING_NETWORKS=$(nmcli con show | awk '/wifi/ {print $1}')
+    nmcli con show | awk '/wifi/ {print $1}' | grep -v -F "$EXISTING_NETWORKS" | xargs -n1 nmcli con delete
 }
+
+# Get the list of existing networks before running tests
+EXISTING_NETWORKS=$(nmcli con show | awk '/wifi/ {print $1}')
 
 # Test case 1: Provide valid SSID and PSK
 log_message "Test case 1: Provide valid SSID and PSK"
@@ -114,5 +118,10 @@ else
     log_message "Test case 10 failed"
 fi
 cleanup_networks
+
+# Restore the existing networks after running tests
+for network in $EXISTING_NETWORKS; do
+    nmcli con add type wifi ifname wlan0 con-name "$network" ssid "$network"
+done
 
 log_message "Test cases completed"
