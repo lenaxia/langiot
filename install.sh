@@ -60,18 +60,18 @@ sudo apt autoremove -y
 log_message "Configuring Raspberry Pi settings for I2C, I2S, SPI and HiFiBerry DAC audio..."
 
 # Backup the original config.txt file
-sudo cp /boot/config.txt /boot/config.txt.bak
+sudo cp /boot/firmware/config.txt /boot/firmware/config.txt.bak
 
 # Enable I2C, I2S and SPI, and HiFiBerry DAC
-sudo sed -i 's/#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' /boot/config.txt
-sudo sed -i 's/#dtparam=i2s=on/dtparam=i2s=on/' /boot/config.txt
-sudo sed -i 's/#dtparam=spi=on/dtparam=spi=on/' /boot/config.txt
-if ! grep -q "^dtoverlay=hifiberry-dac$" /boot/config.txt; then
-    echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/config.txt
+sudo sed -i 's/#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' /boot/firmware/config.txt
+sudo sed -i 's/#dtparam=i2s=on/dtparam=i2s=on/' /boot/firmware/config.txt
+sudo sed -i 's/#dtparam=spi=on/dtparam=spi=on/' /boot/firmware/config.txt
+if ! grep -q "^dtoverlay=hifiberry-dac$" /boot/firmware/config.txt; then
+    echo "dtoverlay=hifiberry-dac" | sudo tee -a /boot/firmware/config.txt
 fi
 
 # Disable onboard audio (to avoid conflicts)
-sudo sed -i 's/^dtparam=audio=on/#dtparam=audio=on/' /boot/config.txt
+sudo sed -i 's/^dtparam=audio=on/#dtparam=audio=on/' /boot/firmware/config.txt
 
 if [ $? -ne 0 ]; then
     log_message "Failed to configure Raspberry Pi settings."

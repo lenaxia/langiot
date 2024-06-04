@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # Default Configuration Variables
-USER="$USER"
 APP_NAME="langiot"
 REPO_URL="https://github.com/lenaxia/langiot"
-APP_DIR="/home/$USER/$APP_NAME"
-LOG_FILE="$APP_DIR/update.log"
+APP_DIR="$HOME/$APP_NAME"
+LOG_FILE="$HOME/update.log"
 MAX_LOG_SIZE=1048576  # 1MB in bytes
 TARBALL_DIR="$APP_DIR/tarballs"
 LATEST_TARBALL="$TARBALL_DIR/$APP_NAME-latest.tar.gz"
