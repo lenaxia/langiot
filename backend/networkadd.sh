@@ -8,20 +8,14 @@ log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> $LOG_FILE
 }
 
-CONFIG_FILE="${3:-/etc/wpa_supplicant/wpa_supplicant.conf}"
-
 SSID="$1"
 PSK="$2"
-KEY_MGMT="${4:-WPA-PSK}"
 
 if [[ -n "$SSID" && -n "$PSK" ]]; then
-    {
-        echo -e "\nnetwork={\n    ssid=\"$SSID\"\n    psk=\"$PSK\"\n    key_mgmt=$KEY_MGMT\n}" >> $CONFIG_FILE && \
-        wpa_cli -i wlan0 reconfigure >> $LOG_FILE 2>&1 && \
-        log_message "Successfully added network $SSID and reloaded Wi-Fi settings." || \
-        { log_message "Failed to reload Wi-Fi settings for $SSID."; exit 3; }
-    }
-fi
+    nmcli --ask --wait 30 dev wifi connect "$SSID" password "$PSK" && \
+    log_message "Successfully added network $SSID." || \
+    { log_message "Failed to add network $SSID."; exit 1; }
 else
     log_message "SSID or PSK not provided for network addition."
     exit 1
+fi
