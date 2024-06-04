@@ -12,7 +12,7 @@ SSID="$1"
 PSK="$2"
 
 if [[ -n "$SSID" && -n "$PSK" ]]; then
-    nmcli --ask --wait 30 dev wifi connect "$SSID" password "$PSK" && \
+    nmcli con add type wifi ifname wlan0 con-name "$SSID" ssid "$SSID" wifi-sec.psk="$PSK" && \
     log_message "Successfully added network $SSID." || \
     { log_message "Failed to add network $SSID."; exit 1; }
 else
