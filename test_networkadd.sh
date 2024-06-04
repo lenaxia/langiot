@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define log file
-LOG_FILE="test_networkadd.log"
+LOG_FILE="${LOG_FILE:-/var/log/wifi_network_management.log}"
 
 # Function to log messages
 log_message() {
@@ -11,8 +11,13 @@ log_message() {
 # Function to clean up networks
 cleanup_networks() {
     log_message "Cleaning up networks..."
-    EXISTING_NETWORKS=$(nmcli con show | awk '/wifi/ {print $1}')
-    nmcli con show | awk '/wifi/ {print $1}' | grep -v -F "$EXISTING_NETWORKS" | xargs -n1 nmcli con delete
+    NEW_NETWORKS=$(mktemp)
+    nmcli con show | awk '/wifi/ {print $1}' | grep -v -F "$EXISTING_NETWORKS" > "$NEW_NETWORKS"
+    while read -r line; do
+        nmcli con down id "$line"
+        nmcli con delete id "$line"
+    done < "$NEW_NETWORKS"
+    rm "$NEW_NETWORKS"
 }
 
 # Get the list of existing networks before running tests

@@ -205,10 +205,11 @@ def delete_network():
         return jsonify({"error": "Internal server error"}), 500
 
 
+
 def get_active_network():
     try:
-        # Using 'iwgetid' to get the current network SSID
-        ssid = subprocess.check_output(['iwgetid', '-r']).strip()
+        # Using 'nmcli' to get the current network SSID
+        ssid = subprocess.check_output(['nmcli', '-t', '-f', 'name', 'dev', 'wifi']).strip()
         return ssid.decode('utf-8') if ssid else None
     except Exception as e:
         logging.error(f"Error getting active network: {e}")
@@ -216,7 +217,14 @@ def get_active_network():
 
 def get_networks():
     try:
-        networks = parse_wpa_supplicant_conf(WIFI_CONFIG_PATH)
+        networks = []
+        # Using 'nmcli' to get all Wi-Fi networks
+        for network in subprocess.check_output(['nmcli', '-t', '-f', 'name,ssid,psk', 'con', 'up', 'wifi']).decode('utf-8').split('\n'):
+            if network:
+                ssid, psk = network.split(':')
+                ssid = ssid.strip()
+                psk = psk.strip()
+                networks.append({"ssid": ssid, "psk": psk, "key_mgmt": "WPA-PSK"})  # Assume WPA-PSK key management
         active_ssid = get_active_network()
         return [{"ssid": network.get('ssid', ''),
                  "psk": network.get('psk', ''),
@@ -226,6 +234,7 @@ def get_networks():
     except Exception as e:
         logging.error(f"Error reading Wi-Fi configurations: {e}")
         raise
+
 
 def parse_wpa_supplicant_conf(file_path):
     networks = []
