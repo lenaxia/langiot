@@ -644,6 +644,9 @@ def main():
                                     logger.warning("Downloaded audio file is not valid and will not be played.")
 
                                 cleanup_downloaded_audio_file()
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+            time.sleep(1)
 
     def handle_local_tts(parsed_data):
         text = parsed_data.get("text")
