@@ -1,4 +1,4 @@
-import gtts
+from gtts import gTTS
 import requests
 import time
 from pydub import AudioSegment
