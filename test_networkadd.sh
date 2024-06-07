@@ -124,9 +124,4 @@ else
 fi
 cleanup_networks
 
-# Restore the existing networks after running tests
-for network in $EXISTING_NETWORKS; do
-    nmcli con add type wifi ifname wlan0 con-name "$network" ssid "$network"
-done
-
 log_message "Test cases completed"
