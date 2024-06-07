@@ -8,5 +8,5 @@ Adafruit-CircuitPython-PN532
 Flask-Cors
 gunicorn
 numpy
-gTTS
+gtts
 ffmpeg
