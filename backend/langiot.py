@@ -1,3 +1,4 @@
+import gtts
 import requests
 import time
 from pydub import AudioSegment
@@ -27,6 +28,10 @@ os.environ['TESTMODE'] = 'False'
 # Set default values for environment variables
 DEFAULT_CONFIG_PATH = '/config/config.ini'
 DEFAULT_WEB_APP_PATH = '/app/web'
+
+HEADERS = {"Content-Type": "application/json"}
+HEALTH_CHECK_INTERVAL = 300  # 5 minutes in seconds
+CONNECTED_TO_SERVER = False
 
 WIFI_CONFIG_PATH = '/etc/wpa_supplicant/wpa_supplicant.conf'
 
@@ -298,32 +303,6 @@ def handle_write_request(json_str):
     play(beep_sound)
     read_pause_event.clear()  # Resume the read loop
 
-def is_valid_json(json_str):
-    try:
-        json.loads(json_str)
-        return True
-    except json.JSONDecodeError:
-        return False
-
-def perform_http_request(data):
-    try:
-        if 'memory_data' in data:
-            content = json.loads(data['memory_data'])
-            logger.info(f"Content parsed from memory_data: {content}")
-        else:
-            content = data
-            logger.info(f"Using provided data as content: {content}")
-
-        logger.info(f"Sending data to server: {content}")
-        response = requests.post(SERVER_NAME, headers=HEADERS, json=content, timeout=10, stream=True)
-        logger.info(f"Response status code: {response.status_code}")
-        response.raise_for_status()
-        logger.info("Request successful.")
-        return response.content  # Directly return the binary content of the response
-    except requests.RequestException as e:
-        logger.error(f"HTTP request error: {e}")
-        return None
-
 
 def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 10 dB
     def audio_playback_thread(audio_data):
@@ -555,16 +534,60 @@ def get_system_uptime_seconds():
     return uptime_seconds
 
 
+def perform_http_request(data, prefix="generate-speech"):
+    try:
+        url = f"{SERVER_NAME}/{prefix}"
+        if prefix == "healthz":
+            response = requests.get(url, timeout=10)
+        else:
+            content = json.loads(data['memory_data'])
+            logger.info(f"Content parsed from memory_data: {content}")
+            response = requests.post(url, headers=HEADERS, json=content, timeout=10, stream=True)
+
+        logger.info(f"Response status code: {response.status_code}")
+        response.raise_for_status()
+        logger.info("Request successful.")
+        return response.content  # Directly return the binary content of the response
+    except requests.RequestException as e:
+        logger.error(f"HTTP request error: {e}")
+        return None
+
+def check_server_health():
+    global CONNECTED_TO_SERVER
+    while True:
+        try:
+            response = perform_http_request({}, "healthz")
+            if response and json.loads(response) == {"status": "healthy"}:
+                CONNECTED_TO_SERVER = True
+            else:
+                CONNECTED_TO_SERVER = False
+        except Exception as e:
+            logger.error(f"Error checking server health: {e}")
+            CONNECTED_TO_SERVER = False
+
+        time.sleep(HEALTH_CHECK_INTERVAL)
+
+def text_to_speech(text, language):
+    tts = gTTS(text=text, lang=language)
+    tts.save("temp_audio.mp3")
+    os.system("mpg123 temp_audio.mp3")
+    os.remove("temp_audio.mp3")
+
 def main():
     global read_thread
     last_uid = None
     tag_cleared = False  # State to track if we have seen an empty cycle
     logger.info("Script started, waiting for NFC tag.")
 
-    # Play beep sound if system uptime is less than 5 minutes (300 seconds)
-    if get_system_uptime_seconds() < 360:
-        beep_sound = generate_beep(frequency=1000, duration=0.1, volume=0.1)
-        play(beep_sound)
+    # Start server health check thread
+    health_check_thread = threading.Thread(target=check_server_health)
+    health_check_thread.start()
+
+    # Announce connection status
+    if CONNECTED_TO_SERVER:
+        text_to_speech("Connected to server", "en")
+    else:
+        text_to_speech("Not connected to server", "en")
 
     def read_loop():
         nonlocal last_uid, tag_cleared
@@ -597,10 +620,17 @@ def main():
                                 sound_file_thread = threading.Thread(target=download_sound_file, args=(sound_file_url,))
                                 sound_file_thread.start()
 
-                            server_audio_data = perform_http_request(parsed_data)
-                            if server_audio_data:
-                                logger.info("Server audio data received, starting playback.")
-                                play_audio(server_audio_data)
+                            if CONNECTED_TO_SERVER:
+                                try:
+                                    server_audio_data = perform_http_request(parsed_data, "audio")
+                                    if server_audio_data:
+                                        logger.info("Server audio data received, starting playback.")
+                                        play_audio(server_audio_data)
+                                except requests.Timeout:
+                                    logger.warning("HTTP request timed out, falling back to local TTS.")
+                                    handle_local_tts(parsed_data)
+                            else:
+                                handle_local_tts(parsed_data)
 
                             if sound_file_thread:
                                 sound_file_thread.join()
@@ -615,9 +645,27 @@ def main():
 
                                 cleanup_downloaded_audio_file()
 
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
-            time.sleep(1)
+    def handle_local_tts(parsed_data):
+        text = parsed_data.get("text")
+        language = parsed_data.get("language", "en")
+        translations = parsed_data.get("translations", [])
+        localizations = parsed_data.get("localization", {})
+    
+        if text and language:
+            tts = gTTS(text=text, lang=language)
+            tts_audio_data = tts.read()
+            play_audio(tts_audio_data)
+    
+            for translation_lang in translations:
+                translated_text = gTTS(text=text, lang=translation_lang, slow=False)
+                translated_audio_data = translated_text.read()
+                play_audio(translated_audio_data)
+    
+        if localizations:
+            for locale, localized_text in localizations.items():
+                localized_tts = gTTS(text=localized_text, lang=locale)
+                localized_audio_data = localized_tts.read()
+                play_audio(localized_audio_data)
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
