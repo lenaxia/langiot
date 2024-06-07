@@ -4,7 +4,7 @@
 APP_NAME="langiot"
 REPO_URL="https://github.com/lenaxia/langiot"
 APP_DIR="$HOME/$APP_NAME"
-LOG_FILE="$HOME/update.log"
+LOG_FILE="$HOME/langiot-update.log"
 MAX_LOG_SIZE=1048576  # 1MB in bytes
 TARBALL_DIR="$APP_DIR/tarballs"
 LATEST_TARBALL="$TARBALL_DIR/$APP_NAME-latest.tar.gz"
@@ -228,7 +228,7 @@ if [ -z "$CURRENT_TAG" ]; then
     CURRENT_TAG=$(cat "$APP_DIR/version.txt")
 fi
 if [ -z "$LATEST_TAG" ]; then
-    LATEST_TAG=$(git ls-remote --tags "$REPO_URL" | cut -d/ -f3 | sort -V | tail -n1)
+    LATEST_TAG=$(git ls-remote --refs --tags "$REPO_URL" | cut -d/ -f3 | sort -V | tail -n1)
 fi
 
 log_message "Current version: $CURRENT_TAG"
