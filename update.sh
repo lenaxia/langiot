@@ -232,7 +232,7 @@ if [ -z "$LATEST_TAG" ]; then
 fi
 
 log_message "Current version: $CURRENT_TAG"
-log_message "Latest version: $LATEST_TAG"
+log_message "Latest version:  $LATEST_TAG"
 
 # Update process
 # Validate and compare versions
