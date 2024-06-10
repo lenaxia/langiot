@@ -570,7 +570,7 @@ def check_server_health():
 def text_to_speech(text, language):
     tts = gTTS(text=text, lang=language)
     tts.save("temp_audio.mp3")
-    os.system("mpg123 temp_audio.mp3")
+    play_audio("temp_audio.mp3")
     os.remove("temp_audio.mp3")
 
 def main():
