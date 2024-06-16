@@ -571,6 +571,7 @@ def check_server_health():
         time.sleep(HEALTH_CHECK_INTERVAL)
 
 def text_to_speech(text, language):
+    logger.info(f"Local TTS: [{language}] {text}")
     tts = gTTS(text=text, lang=language)
     tts.save("temp_audio.mp3")
     play_audio("temp_audio.mp3")
