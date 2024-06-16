@@ -92,10 +92,6 @@ def log_request_info():
 @app.route('/healthz', methods=['GET'])
 def health_check():
     try:
-        # Perform a basic health check. For example, you can:
-        # - Make a simple database query
-        # - Check if critical services (like external APIs) are reachable
-        # - Return a simple "OK" if basic app functions are working
         return jsonify({"status": "healthy"}), 200
     except Exception as e:
         app.logger.error(f"Health check failed: {e}")
@@ -559,8 +555,10 @@ def check_server_health():
             response = perform_http_request({}, "healthz")
             if response and json.loads(response) == {"status": "healthy"}:
                 CONNECTED_TO_SERVER = True
+                logger.info("Health check to server successful.")
             else:
                 CONNECTED_TO_SERVER = False
+                logger.info("Health check to server unsuccessful. Disconnected from server.")
         except Exception as e:
             logger.error(f"Error checking server health: {e}")
             CONNECTED_TO_SERVER = False
