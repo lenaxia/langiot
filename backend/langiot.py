@@ -536,8 +536,13 @@ def perform_http_request(data, prefix="generate-speech"):
         if prefix == "healthz":
             response = requests.get(url, timeout=10)
         else:
-            content = json.loads(data['memory_data'])
-            logger.info(f"Content parsed from memory_data: {content}")
+            if 'memory_data' in data:
+                content = json.loads(data['memory_data'])
+                logger.info(f"Content parsed from memory_data: {content}")
+            else:
+                content = data
+                logger.info(f"Using provided data as content: {content}")
+
             response = requests.post(url, headers=HEADERS, json=content, timeout=10, stream=True)
 
         logger.info(f"Response status code: {response.status_code}")
