@@ -693,37 +693,43 @@ def main():
 
         if text and language:
             logger.info(f"handle_local_tts translations start")
-            tts = gTTS(text=text, lang=language)
-            fp = BytesIO()
-            tts.write_to_fp(fp)
-            tts_audio_data = fp.getvalue()
+            tts = generate_tts(text=text, language=language)
             play_audio(tts_audio_data)
 
             for translation_lang in translations:
-                translated_text = translator.translate(text, src=language, dest=translation_lang).text
                 logger.info(f"Translated TTS: [{translation_lang}] {translated_text}")
-                tts = gTTS(text=translated_text, lang=translation_lang, slow=False)
-                fp = BytesIO()
-                tts.write_to_fp(fp)
-                tts_audio_data = fp.getvalue()
-                play_audio(tts_audio_data)
+                tts = translate_and_tts(text, language, translation_lang)
+                play_audio(tts)
 
         if localizations:
             logger.info(f"handle_local_tts localizations start")
             for locale, localized_text in localizations.items():
                 logger.info(f"Localized TTS: [{locale}] {localized_text}")
-                localized_tts = gTTS(text=localized_text, lang=locale)
-                fp = BytesIO()
-                localized_tts.write_to_fp(fp)
-                localized_audio_data = fp.getvalue()
-                play_audio(localized_audio_data)
+                tts = generate_tts(text=localized_text, language=locale)
+                play_audio(tts)
 
     logger.info(f"handle_local_tts finished")
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
 
+def generate_tts(language, text):
+    try:
+        tts = gTTS(text=text, lang=language)
+        audio_fp = io.BytesIO()
+        tts.write_to_fp(audio_fp)
+        return audio_fp.getvalue()
+    except Exception as e:
+        raise Exception(f"Failed to generate speech for {language}: {e}")
 
+def translate_and_tts(original_text, original_lang, target_lang):
+    try:
+        translator = Translator()
+        translation = translator.translate(original_text, src=original_lang, dest=target_lang).text
+        app.logger.info(f"Translation to {target_lang}: {translation}")
+        return generate_tts(target_lang, translation)
+    except Exception as e:
+        raise Exception(f"Failed in translation or TTS for {target_lang}: {e}")
 
 
 def signal_handler(sig, frame):
