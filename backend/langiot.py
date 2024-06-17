@@ -1,3 +1,4 @@
+from io import BytesIO
 from gtts import gTTS
 import requests
 import time
@@ -20,6 +21,13 @@ from flask_cors import CORS
 from digitalio import DigitalInOut
 from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
 import subprocess
+import queue
+from googletrans import Translator
+
+translator = Translator()
+
+audio_queue = queue.Queue()
+audio_thread = None
 
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
 #os.environ['SDL_AUDIODRIVER'] = 'dummy'
@@ -30,7 +38,7 @@ DEFAULT_CONFIG_PATH = '/config/config.ini'
 DEFAULT_WEB_APP_PATH = '/app/web'
 
 HEADERS = {"Content-Type": "application/json"}
-HEALTH_CHECK_INTERVAL = 300  # 5 minutes in seconds
+HEALTH_CHECK_INTERVAL = 600  # 5 minutes in seconds
 CONNECTED_TO_SERVER = False
 
 WIFI_CONFIG_PATH = '/etc/wpa_supplicant/wpa_supplicant.conf'
@@ -224,7 +232,7 @@ def get_networks():
         cmd = "nmcli --terse --fields TYPE,NAME con show | awk -F: '$1 == \"802-11-wireless\" {print $2}'"
         for network in subprocess.check_output(cmd, shell=True).decode('utf-8').split('\n'):
             if network:
-                networks.append({"ssid": network}) 
+                networks.append({"ssid": network})
         active_ssid = get_active_network()
         return [{"ssid": network.get('ssid', ''),
                  "isConnected": (network.get('ssid', '') == active_ssid)}
@@ -238,7 +246,7 @@ def parse_wpa_supplicant_conf(file_path):
     networks = []
     with open(file_path, 'r') as file:
         content = file.read()
-    
+
     # Simple state machine to parse networks
     in_network_block = False
     for line in content.split('\n'):
@@ -254,7 +262,7 @@ def parse_wpa_supplicant_conf(file_path):
             if value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]  # Strip quotes
             current_network[key] = value
-    
+
     return networks
 
 
@@ -300,39 +308,44 @@ def handle_write_request(json_str):
     read_pause_event.clear()  # Resume the read loop
 
 
-def play_audio(audio_data, volume_change_dB=-5):  # Default volume reduction by 10 dB
-    def audio_playback_thread(audio_data):
-        try:
-            logger.info("Loading audio data into stream.")
-            audio_stream = io.BytesIO(audio_data)
-            audio = AudioSegment.from_file(audio_stream, format='mp3')
-            silence = AudioSegment.silent(duration=100)  # 100 milliseconds of silence
-            audio = silence + audio
 
-            # Adjust volume
-            if volume_change_dB < 0:
-                logger.info(f"Reducing volume by {-volume_change_dB} dB.")
-                audio = audio - (-volume_change_dB)
-            elif volume_change_dB > 0:
-                logger.info(f"Increasing volume by {volume_change_dB} dB.")
-                audio = audio.apply_gain(volume_change_dB)
+def play_audio(audio_data, volume_change_dB=-5):
+    global audio_queue, audio_thread
 
-            audio = audio.set_channels(2)
-            audio = audio.set_frame_rate(22050)
+    def audio_playback_worker():
+        while True:
+            try:
+                audio_data = audio_queue.get(block=True)
+                logger.info("Loading audio data into stream.")
+                audio_stream = io.BytesIO(audio_data)
+                audio = AudioSegment.from_file(audio_stream, format='mp3')
+                silence = AudioSegment.silent(duration=100)  # 100 milliseconds of silence
+                audio = silence + audio
 
-            logger.info("Audio data loaded, starting playback.")
-            play(audio)
-            logger.info("Audio playback finished.")
-        except Exception as e:
-            logger.error(f"Error playing audio: {e}")
+                # Adjust volume
+                if volume_change_dB < 0:
+                    logger.info(f"Reducing volume by {-volume_change_dB} dB.")
+                    audio = audio - (-volume_change_dB)
+                elif volume_change_dB > 0:
+                    logger.info(f"Increasing volume by {volume_change_dB} dB.")
+                    audio = audio.apply_gain(volume_change_dB)
 
-    try:
-        playback_thread = threading.Thread(target=audio_playback_thread, args=(audio_data,))
-        playback_thread.daemon = True
-        playback_thread.start()
-        logger.info("Audio playback thread started.")
-    except Exception as e:
-        logger.error(f"Error creating audio playback thread: {e}")
+                audio = audio.set_channels(2)
+                audio = audio.set_frame_rate(22050)
+
+                logger.info("Audio data loaded, starting playback.")
+                play(audio)
+                logger.info("Audio playback finished.")
+                audio_queue.task_done()
+            except Exception as e:
+                logger.error(f"Error playing audio: {e}")
+                audio_queue.task_done()
+
+    if audio_thread is None or not audio_thread.is_alive():
+        audio_thread = threading.Thread(target=audio_playback_worker, daemon=True)
+        audio_thread.start()
+
+    audio_queue.put(audio_data)
 
 def generate_beep(frequency=1000, duration=0.2, volume=0.1, sample_rate=44100):
     # Generate a sine wave
@@ -574,8 +587,14 @@ def text_to_speech(text, language):
     logger.info(f"Local TTS: [{language}] {text}")
     tts = gTTS(text=text, lang=language)
     tts.save("temp_audio.mp3")
-    play_audio("temp_audio.mp3")
+
+    # Read the audio file as bytes
+    with open("temp_audio.mp3", "rb") as f:
+        audio_data = f.read()
+
+    play_audio(audio_data)
     os.remove("temp_audio.mp3")
+    logger.info(f"Local TTS finished")
 
 def main():
     global read_thread
@@ -652,27 +671,54 @@ def main():
                 logger.error(f"An error occurred: {e}")
             time.sleep(1)
 
+
     def handle_local_tts(parsed_data):
-        text = parsed_data.get("text")
-        language = parsed_data.get("language", "en")
-        translations = parsed_data.get("translations", [])
-        localizations = parsed_data.get("localization", {})
-    
+        logger.info(f"handle_local_tts: {parsed_data}")
+        memory_data_str = parsed_data.get("memory_data")
+        if memory_data_str:
+            memory_data = json.loads(memory_data_str)
+            text = memory_data.get("text")
+            language = memory_data.get("language", "en")
+            translations = memory_data.get("translations", [])
+            localizations = memory_data.get("localization", {})
+        else:
+            text = None
+            language = "en"
+            translations = []
+            localizations = {}
+
+        logger.info(f"handle_local_tts[text/language]: {text}/{language}")
+        logger.info(f"handle_local_tts[translations]: {translations}")
+        logger.info(f"handle_local_tts[localizations]: {localizations}")
+
         if text and language:
+            logger.info(f"handle_local_tts translations start")
             tts = gTTS(text=text, lang=language)
-            tts_audio_data = tts.read()
+            fp = BytesIO()
+            tts.write_to_fp(fp)
+            tts_audio_data = fp.getvalue()
             play_audio(tts_audio_data)
-    
+
             for translation_lang in translations:
-                translated_text = gTTS(text=text, lang=translation_lang, slow=False)
-                translated_audio_data = translated_text.read()
-                play_audio(translated_audio_data)
-    
+                translated_text = translator.translate(text, src=language, dest=translation_lang).text
+                logger.info(f"Translated TTS: [{translation_lang}] {translated_text}")
+                tts = gTTS(text=translated_text, lang=translation_lang, slow=False)
+                fp = BytesIO()
+                tts.write_to_fp(fp)
+                tts_audio_data = fp.getvalue()
+                play_audio(tts_audio_data)
+
         if localizations:
+            logger.info(f"handle_local_tts localizations start")
             for locale, localized_text in localizations.items():
+                logger.info(f"Localized TTS: [{locale}] {localized_text}")
                 localized_tts = gTTS(text=localized_text, lang=locale)
-                localized_audio_data = localized_tts.read()
+                fp = BytesIO()
+                localized_tts.write_to_fp(fp)
+                localized_audio_data = fp.getvalue()
                 play_audio(localized_audio_data)
+
+    logger.info(f"handle_local_tts finished")
 
     read_thread = threading.Thread(target=read_loop)
     read_thread.start()
