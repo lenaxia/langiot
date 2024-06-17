@@ -3,10 +3,11 @@
 # Configuration Variables
 APP_NAME="langiot"
 REPO_URL="https://github.com/lenaxia/langiot.git"
-APP_DIR="/home/$USER/$APP_NAME"
-CONFIG_DIR="/home/$USER"
+APP_DIR="$HOME/$APP_NAME"
+TARBALLS="$HOME/langiot-tarballs"
+CONFIG_DIR="$HOME"
 CONFIG_FILE="$APP_NAME.conf"
-LOG_FILE="/home/$USER/$APP_NAME-install.log"
+LOG_FILE="$HOME/$APP_NAME-install.log"
 SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
 AVAHISERVICEFILE="/etc/avahi/services/$APP_NAME.service"
 PORT=8080
@@ -174,7 +175,7 @@ fi
 rm "$TEMP_CRONTAB"
 
 # make the app folder
-mkdir -p $APP_DIR/tarballs
+mkdir -p $TARBALLS
 cd $APP_DIR
 
 # Get the latest release assets JSON from GitHub API
@@ -182,9 +183,9 @@ assets_url=$(curl -s https://api.github.com/repos/lenaxia/langiot/releases/lates
 # Fetch the browser_download_url for the specific asset (langiot-package.tar.gz)
 download_url=$(curl -s "${assets_url}" | jq -r '.[] | select(.name == "langiot-package.tar.gz") | .browser_download_url')
 # Use wget to download the tar.gz file
-wget -O $APP_DIR/tarballs/langiot-latest.tar.gz "${download_url}"
+wget -O $TARBALLS/langiot-latest.tar.gz "${download_url}"
 
-tar -xzvf $APP_DIR/tarballs/langiot-latest.tar.gz
+tar -xzvf $TARBALLS/langiot-latest.tar.gz
 
 # Setup Python Virtual Environment
 log_message "Setting up Python Virtual Environment..."

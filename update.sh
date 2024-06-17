@@ -6,7 +6,7 @@ REPO_URL="https://github.com/lenaxia/langiot"
 APP_DIR="$HOME/$APP_NAME"
 LOG_FILE="$HOME/langiot-update.log"
 MAX_LOG_SIZE=1048576  # 1MB in bytes
-TARBALL_DIR="$APP_DIR/tarballs"
+TARBALL_DIR="$HOME/langiot-tarballs"
 LATEST_TARBALL="$TARBALL_DIR/$APP_NAME-latest.tar.gz"
 PREVIOUS_TARBALL="$TARBALL_DIR/$APP_NAME-previous.tar.gz"
 SERVICE_NAME="${APP_NAME}.service"
@@ -284,8 +284,11 @@ fi
 wget -O "$LATEST_TARBALL" "$download_url"
 
 
-# Extract the new tarball and check the operation
-tar -xzvf "$LATEST_TARBALL" || { log_message "Extraction failed"; exit 1; }
+# Change to the parent directory of $APP_DIR
+cd "$(dirname "$APP_DIR")" || exit
+
+# Extract the new tarball, overwriting existing files
+tar -xzvf "$LATEST_TARBALL" -C "$(basename "$APP_DIR")" || { log_message "Extraction failed"; exit 1; }
 
 # Restart and check the service
 if restart_service; then
