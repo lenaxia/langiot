@@ -8,6 +8,5 @@ Adafruit-CircuitPython-PN532
 Flask-Cors
 gunicorn
 numpy
-gtts
 ffmpeg
-googletrans==4.0.0-rc1
+piper-tts==1.2.0

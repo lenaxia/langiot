@@ -1,5 +1,4 @@
 from io import BytesIO
-from gtts import gTTS
 import requests
 import time
 from pydub import AudioSegment
@@ -11,6 +10,7 @@ import io
 import os
 import signal
 import sys
+import wave
 import board
 import busio
 import logging
@@ -22,9 +22,8 @@ from digitalio import DigitalInOut
 from adafruit_pn532.i2c import PN532_I2C  # pip install adafruit-blinka adafruit-circuitpython-pn532
 import subprocess
 import queue
-from googletrans import Translator
-
-translator = Translator()
+from piper import PiperVoice
+from piper.download import ensure_voice_exists, get_voices
 
 audio_queue = queue.Queue()
 audio_thread = None
@@ -32,6 +31,7 @@ audio_thread = None
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
 #os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['TESTMODE'] = 'False'
+home_dir = os.path.expanduser("$HOME")
 
 # Set default values for environment variables
 DEFAULT_CONFIG_PATH = '/config/config.ini'
@@ -41,16 +41,29 @@ HEADERS = {"Content-Type": "application/json"}
 HEALTH_CHECK_INTERVAL = 600  # 5 minutes in seconds
 CONNECTED_TO_SERVER = False
 
-WIFI_CONFIG_PATH = '/etc/wpa_supplicant/wpa_supplicant.conf'
-
-
 # Use environment variables if they are set, otherwise use the default values
 CONFIG_FILE_PATH = os.getenv('CONFIG_FILE_PATH', DEFAULT_CONFIG_PATH)
 WEB_APP_PATH = os.getenv('WEB_APP_PATH', DEFAULT_WEB_APP_PATH)
 
+
+# Configure the paths
+PIPER_MODEL_NAME = "en_female"
+PIPER_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), ".piper", "downloads")
+PIPER_DATA_DIRS = []  # No data directories specified
+
+# Set synthesis parameters
+PIPER_SYNTHESIS_ARGS = {
+    "speaker_id": 0,
+    "length_scale": 1.0,
+    "noise_scale": 0.667,
+    "noise_w": 0.8,
+    "sentence_silence": 0.0,
+}
+
 # Declare read_thread as a global variable
 read_thread = None
 config = configparser.ConfigParser()
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -309,6 +322,7 @@ def handle_write_request(json_str):
 
 
 
+
 def play_audio(audio_data, volume_change_dB=-5):
     global audio_queue, audio_thread
 
@@ -318,7 +332,17 @@ def play_audio(audio_data, volume_change_dB=-5):
                 audio_data = audio_queue.get(block=True)
                 logger.info("Loading audio data into stream.")
                 audio_stream = io.BytesIO(audio_data)
-                audio = AudioSegment.from_file(audio_stream, format='mp3')
+
+                # Determine the audio format
+                try:
+                    with wave.open(audio_stream, 'r') as wav:
+                        audio_format = 'wav'
+                except wave.Error:
+                    audio_stream.seek(0)
+                    audio_format = 'mp3'
+
+                audio_stream.seek(0)
+                audio = AudioSegment.from_file(audio_stream, format=audio_format)
                 silence = AudioSegment.silent(duration=100)  # 100 milliseconds of silence
                 audio = silence + audio
 
@@ -331,7 +355,8 @@ def play_audio(audio_data, volume_change_dB=-5):
                     audio = audio.apply_gain(volume_change_dB)
 
                 audio = audio.set_channels(2)
-                audio = audio.set_frame_rate(22050)
+                if audio_format == 'wav':
+                    audio = audio.set_frame_rate(22050)
 
                 logger.info("Audio data loaded, starting playback.")
                 play(audio)
@@ -583,19 +608,6 @@ def check_server_health():
 
         time.sleep(HEALTH_CHECK_INTERVAL)
 
-def text_to_speech(text, language):
-    logger.info(f"Local TTS: [{language}] {text}")
-    tts = gTTS(text=text, lang=language)
-    tts.save("temp_audio.mp3")
-
-    # Read the audio file as bytes
-    with open("temp_audio.mp3", "rb") as f:
-        audio_data = f.read()
-
-    play_audio(audio_data)
-    os.remove("temp_audio.mp3")
-    logger.info(f"Local TTS finished")
-
 def main():
     global read_thread
     last_uid = None
@@ -608,9 +620,9 @@ def main():
 
     # Announce connection status
     if CONNECTED_TO_SERVER:
-        text_to_speech("Connected to server", "en")
+        generate_tts("Connected to server", "en")
     else:
-        text_to_speech("Not connected to server", "en")
+        generate_tts("Not connected to server, only English Text to Speech is available", "en")
 
     def read_loop():
         nonlocal last_uid, tag_cleared
@@ -672,65 +684,80 @@ def main():
             time.sleep(1)
 
 
-    def handle_local_tts(parsed_data):
-        logger.info(f"handle_local_tts: {parsed_data}")
+    read_thread = threading.Thread(target=read_loop)
+    read_thread.start()
+
+# Load the Piper voice model
+def load_voice_model():
+    voices_info = get_voices(PIPER_DOWNLOAD_DIR, update_voices=True)
+    ensure_voice_exists(PIPER_MODEL_NAME, PIPER_DATA_DIRS, PIPER_DOWNLOAD_DIR, voices_info)
+    model_path, config_path = find_voice(PIPER_MODEL_NAME, PIPER_DATA_DIRS)
+    voice = PiperVoice.load(str(model_path), config_path=str(config_path), use_cuda=False)
+    return voice
+
+def generate_tts(text, locale="en"):
+    logger.info(f"Generate TTS: [{language}] {text}")
+    if locale != "en":
+        text = "Only English is currently supported for offline text to speech."
+
+    try:
+        audio_fp = io.BytesIO()
+        with wave.open(audio_fp, "wb") as wav_file:
+            voice.synthesize(text, wav_file, **synthesis_args)
+        audio_fp.seek(0)
+        logger.info(f"Generate TTS finished")
+        return audio_fp.read()
+    except Exception as e:
+        raise Exception(f"Local TTS: Failed to generate speech: {text} {locale} {e}")
+
+def text_to_speech(text, language):
+    logger.info(f"Local TTS: [{language}] {text}")
+    combined_mp3 = io.BytesIO()
+    tts_audio_bytes = generate_tts(localized_text, "en")
+    combined_mp3.write(tts_audio_bytes)
+    combined_mp3.seek(0)
+    play_audio(combined_mp3.getvalue())
+    logger.info(f"Local TTS finished")
+
+def handle_local_tts(parsed_data):
+    logger.info(f"handle_local_tts start: {parsed_data}")
+    try:
+        combined_mp3 = io.BytesIO()
+
         memory_data_str = parsed_data.get("memory_data")
         if memory_data_str:
             memory_data = json.loads(memory_data_str)
             text = memory_data.get("text")
             language = memory_data.get("language", "en")
-            translations = memory_data.get("translations", [])
-            localizations = memory_data.get("localization", {})
         else:
-            text = None
+            text = "No valid data found"
             language = "en"
-            translations = []
-            localizations = {}
-
-        logger.info(f"handle_local_tts[text/language]: {text}/{language}")
-        logger.info(f"handle_local_tts[translations]: {translations}")
-        logger.info(f"handle_local_tts[localizations]: {localizations}")
 
         if text and language:
-            logger.info(f"handle_local_tts translations start")
-            tts = generate_tts(text=text, language=language)
-            play_audio(tts_audio_data)
+            tts_audio_bytes = generate_tts(text, language)
+            combined_mp3.write(tts_audio_bytes)
 
-            for translation_lang in translations:
-                logger.info(f"Translated TTS: [{translation_lang}] {translated_text}")
-                tts = translate_and_tts(text, language, translation_lang)
-                play_audio(tts)
+        # We currently do not iterate through translations because piper only supports english
 
         if localizations:
             logger.info(f"handle_local_tts localizations start")
-            for locale, localized_text in localizations.items():
-                logger.info(f"Localized TTS: [{locale}] {localized_text}")
-                tts = generate_tts(text=localized_text, language=locale)
-                play_audio(tts)
+            if "en" in localizations:
+                localized_text = localizations["en"]
+                logger.info(f"Localized TTS: [en] {localized_text}")
+                tts_audio_bytes = generate_tts(localized_text, "en")
+                combined_mp3.write(tts_audio_bytes)
+            else:
+                logger.info(f"localization enslish not found, so sending in a random language")
+                tts_audio_bytes = generate_tts(localized_text, "zh")
+                combined_mp3.write(tts_audio_bytes)
 
-    logger.info(f"handle_local_tts finished")
+        combined_mp3.seek(0)
+        play_audio(combined_mp3.getvalue())
+        logger.info("handle_local_tts finished")
 
-    read_thread = threading.Thread(target=read_loop)
-    read_thread.start()
-
-def generate_tts(language, text):
-    try:
-        tts = gTTS(text=text, lang=language)
-        audio_fp = io.BytesIO()
-        tts.write_to_fp(audio_fp)
-        return audio_fp.getvalue()
     except Exception as e:
-        raise Exception(f"Failed to generate speech for {language}: {e}")
-
-def translate_and_tts(original_text, original_lang, target_lang):
-    try:
-        translator = Translator()
-        translation = translator.translate(original_text, src=original_lang, dest=target_lang).text
-        app.logger.info(f"Translation to {target_lang}: {translation}")
-        return generate_tts(target_lang, translation)
-    except Exception as e:
-        raise Exception(f"Failed in translation or TTS for {target_lang}: {e}")
-
+        logger.error(f"Error in generate-speech: {e}")
+        return jsonify({"error": "Text-to-Speech conversion failed", "details": str(e)}), 500
 
 def signal_handler(sig, frame):
     global read_thread
@@ -750,6 +777,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 load_configuration()
+voice = load_voice_model()
 main()
 
 def run_flask_app():
