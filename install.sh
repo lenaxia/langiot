@@ -13,6 +13,9 @@ AVAHISERVICEFILE="/etc/avahi/services/$APP_NAME.service"
 PORT=8080
 S3_URL="https://s3.amazonaws.com/mybucket/myicon.png"
 DESCRIPTION="This is the web frontend to manage the LangClient"
+ADHOC_MANAGER="adhoc-network-manager"
+ADHOC_SCRIPT_PATH="$HOME/$APP_NAME/adhoc_network_manager.py"
+ADHOC_SERVICE_FILE="/etc/systemd/system/$ADHOC_MANAGER.service"
 
 
 # Function to log messages
@@ -199,8 +202,7 @@ else
 fi
 
 cd "$APP_DIR/backend"
-python3 -m venv venv
-source venv/bin/activate
+source $APP_DIR/backend/venv/bin/activate
 pip3 install --no-cache-dir -r "$APP_DIR/backend/requirements.txt" && pip3 install RPi.GPIO || {
     log_message "Failed to install Python dependencies."
     exit 1
@@ -283,6 +285,40 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+
+log_message "Creating systemd service for $ADHOC_MANAGER..."
+sudo tee "$ADHOC_SERVICE_FILE" > /dev/null << EOF
+[Unit]
+Description=Ad-hoc Network Manager Service
+After=network.target
+
+[Service]
+User=$USER
+ExecStart=/usr/bin/python3 $ADHOC_SCRIPT_PATH
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+if [ $? -ne 0 ]; then
+    log_message "Failed to create systemd service."
+    exit 1
+fi
+
+# Enable and start the service
+log_message "Enabling and starting the service..."
+sudo systemctl daemon-reload
+sudo systemctl enable $ADHOC_MANAGER.service
+sudo systemctl start $ADHOC_MANAGER.service
+
+if [ $? -ne 0 ]; then
+    log_message "Failed to enable or start the service."
+    exit 1
+fi
+
+log_message "Service $ADHOC_MANAGER installed and started successfully."
 
 log_message "Installation of $APP_NAME completed successfully."
 
