@@ -778,7 +778,6 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 load_configuration()
-voice = load_voice_model()
 main()
 
 def run_flask_app():

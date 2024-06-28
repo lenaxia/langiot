@@ -16,7 +16,7 @@ DESCRIPTION="This is the web frontend to manage the LangClient"
 ADHOC_MANAGER="adhoc-network-manager"
 ADHOC_SCRIPT_PATH="$HOME/$APP_NAME/adhoc_network_manager.py"
 ADHOC_SERVICE_FILE="/etc/systemd/system/$ADHOC_MANAGER.service"
-
+ADHOC_CONFIG_SCRIPT_PATH="$HOME/$APP_NAME/configure_adhoc_network.py"
 
 # Function to log messages
 log_message() {
@@ -33,7 +33,7 @@ sudo chown $USER:$USER /home/$USER/.xdg
 # Update and install dependencies
 log_message "Updating system and installing dependencies..."
 sudo apt-get remove nodejs-legacy
-sudo apt-get update && sudo apt-get install -y jq git gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+sudo apt-get update && sudo apt-get install -y jq git gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev python3-dbus dbus
 sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libjpeg-dev python3-dev libasound2-dev ffmpeg python3-pip python3-venv
 curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -  # Adjust "setup_18.x" as needed for your preferred version
 sudo apt-get install -y nodejs
@@ -188,6 +188,8 @@ download_url=$(curl -s "${assets_url}" | jq -r '.[] | select(.name == "langiot-p
 # Use wget to download the tar.gz file
 wget -O $TARBALLS/langiot-latest.tar.gz "${download_url}"
 
+cd $APP_DIR
+
 tar -xzvf $TARBALLS/langiot-latest.tar.gz
 
 # Setup Python Virtual Environment
@@ -294,7 +296,7 @@ After=network.target
 
 [Service]
 User=$USER
-ExecStart=/usr/bin/python3 $ADHOC_SCRIPT_PATH
+ExecStart=$APP_DIR/backend/venv/bin/python3 $ADHOC_SCRIPT_PATH
 Restart=always
 RestartSec=5s
 
@@ -317,6 +319,8 @@ if [ $? -ne 0 ]; then
     log_message "Failed to enable or start the service."
     exit 1
 fi
+
+sudo $APP_DIR/backend/venv/bin/python3 "ADHOC_CONFIG_SCRIPT_PATH"
 
 log_message "Service $ADHOC_MANAGER installed and started successfully."
 
