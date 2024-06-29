@@ -296,7 +296,7 @@ After=network.target
 
 [Service]
 User=$USER
-ExecStart=$APP_DIR/backend/venv/bin/python3 $ADHOC_SCRIPT_PATH
+ExecStart=/usr/bin/python3 $ADHOC_SCRIPT_PATH
 Restart=always
 RestartSec=5s
 
@@ -320,7 +320,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-sudo $APP_DIR/backend/venv/bin/python3 "ADHOC_CONFIG_SCRIPT_PATH"
+sudo $APP_DIR/backend/venv/bin/python3 "$ADHOC_CONFIG_SCRIPT_PATH"
 
 log_message "Service $ADHOC_MANAGER installed and started successfully."
 
