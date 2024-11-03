@@ -1,13 +1,13 @@
 # LangIOT
 
-LangIOT is a project that provides a web interface and NFC tag functionality for managing language content and audio playback. It allows users to scan NFC tags, retrieve associated text and audio data, and play the audio on the device.
+LangIOT is a project that provides a web interface and NFC tag functionality for managing language content and audio playback. It allows users to scan NFC tags, retrieve associated text, audio data, and translations, and play the audio on the device.
 
 ## Features
 
-- Scan NFC tags to retrieve text and audio data
+- Scan NFC tags to retrieve text, audio data, and translations
 - Play audio files associated with NFC tags
-- Web interface for managing language content and settings
-- Support for multiple languages (currently English only for offline TTS)
+- Web interface for managing language content, translations, and settings
+- Support for multiple languages with online translation services
 - Ad-hoc Wi-Fi network setup for initial configuration
 
 ## Installation
