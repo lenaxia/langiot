@@ -75,4 +75,5 @@ if __name__ == "__main__":
         time.sleep(1)
     else:
         logger.info(f"No network connection found within {ADHOC_NETWORK_TIMEOUT} seconds. Starting ad-hoc network.")
+        generate_tts(f"No Wi-Fi network found, starting ad-hoc network {ADHOC_NETWORK_SSID}", "en")
         start_adhoc_network()

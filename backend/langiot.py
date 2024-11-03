@@ -250,7 +250,10 @@ def get_active_network():
         # Using 'nmcli' to get the current network SSID
         cmd = "nmcli device show wlan0 | grep GENERAL.CONNECTION | awk -F' ' '{print $2}'"
         ssid = subprocess.check_output(cmd, shell=True).strip()
-        return ssid.decode('utf-8') if ssid else None
+        if ssid:
+            ssid_str = ssid.decode('utf-8')
+            generate_tts(f"Successfully connected to Wi-Fi network {ssid_str}", "en")
+        return ssid_str if ssid else None
     except Exception as e:
         logging.error(f"Error getting active network: {e}")
         return None
