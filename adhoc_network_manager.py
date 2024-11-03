@@ -1,4 +1,7 @@
 import dbus
+import dbus.mainloop.glib
+from dbus.mainloop.glib import DBusGMainLoop
+from NetworkManager import NetworkManager, AccessPoint, Device
 import subprocess
 import sys
 
@@ -19,7 +22,7 @@ def stop_adhoc_network():
     subprocess.run(["systemctl", "stop", "hostapd"])
     subprocess.run(["systemctl", "stop", "dnsmasq"])
 
-# Monitor NetworkManager's D-Bus signals
+# Monitor NetworkManager's signals
 def handle_network_state_change(state):
     if state == NetworkManager.State.CONNECTED:
         print("Connected to a network. Stopping ad-hoc network.")
@@ -29,20 +32,19 @@ def handle_network_state_change(state):
         start_adhoc_network()
 
 if __name__ == "__main__":
-    # Connect to NetworkManager's D-Bus interface
-    bus = dbus.SystemBus()
-    network_manager = bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
-    network_manager = dbus.Interface(network_manager, "org.freedesktop.NetworkManager")
+    # Set up the D-Bus main loop
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+
+    nm = NetworkManager()
 
     # Check the initial network state
-    state = network_manager.state()
+    state = nm.state()
     handle_network_state_change(state)
 
     # Monitor network state changes
-    network_manager.connect_to_signal("StateChanged", handle_network_state_change)
+    nm.state_changed_signal.connect(handle_network_state_change)
 
     try:
-        loop = dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        loop.run()
+        nm.loop.run()
     except KeyboardInterrupt:
         sys.exit(0)
