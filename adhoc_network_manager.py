@@ -7,6 +7,7 @@ import sys
 import logging
 import random
 import string
+import os  # Import the os module
 
 # Configuration
 ADHOC_NETWORK_INTERFACE = "wlan0"
