@@ -10,6 +10,7 @@ import time
 import subprocess
 import logging
 from NetworkManager import NetworkManager
+from langiot import generate_tts
 
 # Configuration
 ADHOC_NETWORK_INTERFACE = "wlan0"

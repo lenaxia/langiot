@@ -628,7 +628,11 @@ def check_server_health():
 
         time.sleep(HEALTH_CHECK_INTERVAL)
 
+from voice_model import load_voice_model
+
 voice = load_voice_model()
+
+from download_audio import download_sound_file, get_downloaded_audio_data
 
 def main():
     global read_thread
