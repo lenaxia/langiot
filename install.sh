@@ -207,7 +207,7 @@ if [ -d "$APP_DIR/backend/venv" ]; then
     log_message "Python virtual environment already exists. Skipping creation."
 else
     log_message "Setting up Python Virtual Environment..."
-    python3 -m venv "$APP_DIR/backend/venv"
+    python3 -m venv --system-site-packages "$APP_DIR/backend/venv"
 fi
 
 cd "$APP_DIR/backend"
