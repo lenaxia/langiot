@@ -34,10 +34,10 @@ sudo chown $USER:$USER /home/$USER/.xdg
 log_message "Updating system and installing dependencies..."
 sudo apt-get remove nodejs-legacy
 sudo apt-get update && sudo apt-get install -y jq git gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev python3-dbus dbus python3-networkmanager
-sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libjpeg-dev python3-dev libasound2-dev ffmpeg python3-pip python3-venv piper-tts
+sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libjpeg-dev python3-dev libasound2-dev ffmpeg python3-pip pipx
 
-# Download and install Piper TTS model
-pip3 install piper-tts
+# Install Piper TTS using pipx
+pipx install piper-tts
 PIPER_MODEL_NAME="en_US-lessac-medium"
 PIPER_DOWNLOAD_DIR="$HOME/.piper/downloads"
 mkdir -p "$PIPER_DOWNLOAD_DIR"
