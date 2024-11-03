@@ -32,6 +32,7 @@ sudo chown $USER:$USER /home/$USER/.xdg
 
 if ! grep -q "export PATH=\"\$PATH:/home/yin/.local/bin\"" /home/yin/.bashrc; then
      echo 'export PATH="$PATH:/home/yin/.local/bin"' >> /home/yin/.bashrc
+     source /home/yin/.bashrc
 fi
 
 # Update and install dependencies
@@ -55,13 +56,13 @@ fi
 
 # Check if Node.js version 18 or higher is already installed
 NODE_VERSION=$(node --version 2>/dev/null | cut -d "v" -f 2)
-NODE_REQUIRED="18"
+NODE_REQUIRED="20"
 
 if [[ $? -eq 0 && "${NODE_VERSION%%.*}" -ge "$NODE_REQUIRED" ]]; then
     log_message "Node.js version $NODE_VERSION is already installed and meets the required version."
 else
     # Install Node.js
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
 
     # Update the NODE_VERSION variable after installation
