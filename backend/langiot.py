@@ -25,9 +25,25 @@ import subprocess
 import queue
 from piper import PiperVoice
 from piper.download import ensure_voice_exists, get_voices, find_voice
+from piper import PiperVoice
+from piper.download import ensure_voice_exists, get_voices, find_voice
 
 audio_queue = queue.Queue()
 audio_thread = None
+
+# Configure the paths
+PIPER_MODEL_NAME = "en_US-lessac-medium"
+PIPER_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), ".piper", "downloads")
+PIPER_DATA_DIRS = [PIPER_DOWNLOAD_DIR]  # No data directories specified
+
+# Set synthesis parameters
+PIPER_SYNTHESIS_ARGS = {
+    "speaker_id": 0,
+    "length_scale": 1.0,
+    "noise_scale": 0.667,
+    "noise_w": 0.8,
+    "sentence_silence": 0.0,
+}
 
 # Set SDL to use the dummy audio driver so pygame doesn't require an actual sound device
 #os.environ['SDL_AUDIODRIVER'] = 'dummy'
@@ -609,11 +625,14 @@ def check_server_health():
 
         time.sleep(HEALTH_CHECK_INTERVAL)
 
+voice = load_voice_model()
+
 def main():
     global read_thread
     last_uid = None
     tag_cleared = False  # State to track if we have seen an empty cycle
     logger.info("Script started, waiting for NFC tag.")
+    generate_tts("Ready to scan NFC tags", "en")
 
     # Start server health check thread
     health_check_thread = threading.Thread(target=check_server_health)
@@ -663,6 +682,11 @@ def main():
                                     play_audio(server_audio_data)
                             except requests.Timeout:
                                 logger.warning("HTTP request timed out")
+
+                            if CONNECTED_TO_SERVER:
+                                generate_tts("Connected to server", "en")
+                            else:
+                                generate_tts("Not connected to server, only English Text to Speech is available", "en")
 
                             if sound_file_thread:
                                 sound_file_thread.join()
@@ -789,3 +813,29 @@ if __name__ == "__main__":
     flask_thread.start()
 
     main()
+
+def load_voice_model():
+    # Create the required directories if they don't exist
+    piper_download_dir = Path(PIPER_DOWNLOAD_DIR)
+    piper_download_dir.mkdir(parents=True, exist_ok=True)
+
+    voices_info = get_voices(PIPER_DOWNLOAD_DIR, update_voices=True)
+    ensure_voice_exists(PIPER_MODEL_NAME, [PIPER_DOWNLOAD_DIR], PIPER_DOWNLOAD_DIR, voices_info)
+    model_path, config_path = find_voice(PIPER_MODEL_NAME, [PIPER_DOWNLOAD_DIR])
+    voice = PiperVoice.load(str(model_path), config_path=str(config_path), use_cuda=False)
+    return voice
+
+def generate_tts(text, locale="en"):
+    logger.info(f"Generate TTS: [{locale}] {text}")
+    if locale != "en":
+        text = "Only English is currently supported for offline text to speech."
+
+    try:
+        audio_fp = io.BytesIO()
+        with wave.open(audio_fp, "wb") as wav_file:
+            voice.synthesize(text, wav_file, **PIPER_SYNTHESIS_ARGS)
+        audio_fp.seek(0)
+        logger.info(f"Generate TTS finished")
+        return audio_fp.read()
+    except Exception as e:
+        raise Exception(f"Local TTS: Failed to generate speech: {text} {locale} {e}")
