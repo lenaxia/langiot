@@ -46,7 +46,7 @@ pipx install piper-tts
 PIPER_MODEL_NAME="en_US-lessac-medium"
 PIPER_DOWNLOAD_DIR="$HOME/.piper/downloads"
 mkdir -p "$PIPER_DOWNLOAD_DIR"
-piper-tts download "$PIPER_MODEL_NAME" "$PIPER_DOWNLOAD_DIR"
+piper download "$PIPER_MODEL_NAME" "$PIPER_DOWNLOAD_DIR"
 curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -  # Adjust "setup_18.x" as needed for your preferred version
 sudo apt-get install -y nodejs
 if [ $? -ne 0 ]; then
