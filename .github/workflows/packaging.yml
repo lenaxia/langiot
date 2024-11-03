@@ -30,7 +30,8 @@ jobs:
     - name: Build React application
       run: |
         cd web
-        npm ci
+        rm -f package-lock.json
+        npm install
         npm run build
 
     - name: Move React build to backend
