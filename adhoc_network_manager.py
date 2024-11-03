@@ -1,7 +1,3 @@
-import dbus
-import dbus.mainloop.glib
-from dbus.mainloop.glib import DBusGMainLoop
-from NetworkManager import NetworkManager, AccessPoint, Device
 import subprocess
 import sys
 import logging
@@ -10,24 +6,22 @@ import string
 import os
 import time
 
+import time
+import subprocess
+import logging
+from NetworkManager import NetworkManager
+
 # Configuration
 ADHOC_NETWORK_INTERFACE = "wlan0"
 ADHOC_NETWORK_IP = "192.168.42.1"
-ADHOC_NETWORK_TIMEOUT = 60  # Timeout in seconds before switching to ad-hoc network (default: 60 seconds)
+ADHOC_NETWORK_SSID = "LangClient-Setup"
+ADHOC_NETWORK_PASS = "langclient"
+ADHOC_NETWORK_TIMEOUT = 60  # Timeout in seconds before switching to ad-hoc network
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Generate a random SSID and password
-def generate_random_string(length):
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
-
-ADHOC_NETWORK_SSID = f"LangClient-{generate_random_string(4)}"
-ADHOC_NETWORK_PASS = generate_random_string(8)
-
-# Start the ad-hoc network
 def start_adhoc_network():
     try:
         subprocess.run(["systemctl", "stop", "hostapd"])
@@ -40,16 +34,6 @@ def start_adhoc_network():
     except subprocess.CalledProcessError as e:
         logger.error(f"Error starting ad-hoc network: {e}")
 
-# Stop the ad-hoc network
-def stop_adhoc_network():
-    try:
-        subprocess.run(["systemctl", "stop", "hostapd"])
-        subprocess.run(["systemctl", "stop", "dnsmasq"])
-        logger.info("Ad-hoc network stopped")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error stopping ad-hoc network: {e}")
-
-# Configure the ad-hoc network
 def configure_adhoc_network():
     try:
         os.makedirs("/etc/hostapd", exist_ok=True)
@@ -79,38 +63,16 @@ def configure_adhoc_network():
     except Exception as e:
         logger.error(f"Error configuring ad-hoc network: {e}")
 
-# Monitor NetworkManager's signals
-def handle_network_state_change(state):
-    global adhoc_network_timer
-
-    if state == NetworkManager.State.CONNECTED:
-        logger.info("Connected to a network. Stopping ad-hoc network.")
-        stop_adhoc_network()
-        adhoc_network_timer = None
-    else:
-        logger.info("Not connected to a network.")
-        if adhoc_network_timer is None:
-            adhoc_network_timer = time.time()
-        elif time.time() - adhoc_network_timer >= ADHOC_NETWORK_TIMEOUT:
-            logger.info(f"Ad-hoc network timeout ({ADHOC_NETWORK_TIMEOUT} seconds) reached. Starting ad-hoc network.")
-            start_adhoc_network()
-            adhoc_network_timer = None
-
 if __name__ == "__main__":
-    # Set up the D-Bus main loop
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
     nm = NetworkManager()
-    adhoc_network_timer = None
+    start_time = time.time()
 
-    # Check the initial network state
-    state = nm.state()
-    handle_network_state_change(state)
-
-    # Monitor network state changes
-    nm.state_changed_signal.connect(handle_network_state_change)
-
-    try:
-        nm.loop.run()
-    except KeyboardInterrupt:
-        sys.exit(0)
+    while time.time() - start_time < ADHOC_NETWORK_TIMEOUT:
+        state = nm.state()
+        if state == NetworkManager.State.CONNECTED:
+            logger.info("Connected to a network. Ad-hoc network not needed.")
+            break
+        time.sleep(1)
+    else:
+        logger.info(f"No network connection found within {ADHOC_NETWORK_TIMEOUT} seconds. Starting ad-hoc network.")
+        start_adhoc_network()

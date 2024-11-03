@@ -288,41 +288,32 @@ if [ $? -ne 0 ]; then
 fi
 
 
-log_message "Creating systemd service for $ADHOC_MANAGER..."
-sudo tee "$ADHOC_SERVICE_FILE" > /dev/null << EOF
-[Unit]
-Description=Ad-hoc Network Manager Service
-After=network.target
+# Set up a cron job for running the adhoc network setup script on reboot
+log_message "Setting up a cron job for running the adhoc network setup script on reboot..."
 
-[Service]
-User=$USER
-ExecStart=/usr/bin/python3 $ADHOC_SCRIPT_PATH
-Restart=always
-RestartSec=5s
+# Define the cron job command
+CRON_JOB_COMMAND="@reboot /usr/bin/python3 $APP_DIR/backend/adhoc_network_manager.py"
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# Export existing crontab to a temporary file
+TEMP_CRONTAB=$(mktemp)
+crontab -l > "$TEMP_CRONTAB" 2>/dev/null
 
-if [ $? -ne 0 ]; then
-    log_message "Failed to create systemd service."
-    exit 1
+# Check if a similar cron job already exists
+if grep -Fq "$CRON_JOB_COMMAND" "$TEMP_CRONTAB"; then
+    log_message "A similar cron job for running the adhoc network setup script on reboot already exists. No changes made."
+else
+    # Add the new cron job if it doesn't exist
+    echo "$CRON_JOB_COMMAND" >> "$TEMP_CRONTAB"
+    crontab "$TEMP_CRONTAB"
+    if [ $? -ne 0 ]; then
+        log_message "Failed to set up the cron job."
+        rm "$TEMP_CRONTAB"
+        exit 1
+    fi
+    log_message "Cron job for running the adhoc network setup script on reboot set up successfully."
 fi
-
-# Enable and start the service
-log_message "Enabling and starting the service..."
-sudo systemctl daemon-reload
-sudo systemctl enable $ADHOC_MANAGER.service
-sudo systemctl start $ADHOC_MANAGER.service
-
-if [ $? -ne 0 ]; then
-    log_message "Failed to enable or start the service."
-    exit 1
-fi
-
-sudo $APP_DIR/backend/venv/bin/python3 "$ADHOC_CONFIG_SCRIPT_PATH"
-
-log_message "Service $ADHOC_MANAGER installed and started successfully."
+# Clean up
+rm "$TEMP_CRONTAB"
 
 log_message "Installation of $APP_NAME completed successfully."
 
