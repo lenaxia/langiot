@@ -10,3 +10,4 @@ gunicorn
 numpy
 ffmpeg
 piper-tts==1.2.0
+dbus
