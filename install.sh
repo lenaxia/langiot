@@ -30,6 +30,10 @@ touch "$LOG_FILE"
 sudo mkdir /home/$USER/.xdg
 sudo chown $USER:$USER /home/$USER/.xdg
 
+if ! grep -q "export PATH=\"\$PATH:/home/yin/.local/bin\"" /home/yin/.bashrc; then
+     echo 'export PATH="$PATH:/home/yin/.local/bin"' >> /home/yin/.bashrc
+fi
+
 # Update and install dependencies
 log_message "Updating system and installing dependencies..."
 sudo apt-get remove nodejs-legacy
