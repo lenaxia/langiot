@@ -15,25 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-#    - name: Install system dependencies for building
-#      run: sudo apt-get update && sudo apt-get install -y libasound2-dev ffmpeg libatlas-base-dev
-#
-#    - name: Create and activate Python virtual environment
-#      run: |
-#        python -m venv venv
-#        source venv/bin/activate
-#        pip install -r requirements.txt
-#        deactivate
-#      working-directory: ./backend
-
-    - name: Set up Node.js 20
+    - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '20'
@@ -41,7 +30,7 @@ jobs:
     - name: Build React application
       run: |
         cd web
-        npm install
+        npm ci
         npm run build
 
     - name: Move React build to backend
@@ -53,7 +42,7 @@ jobs:
     - name: Add tag version to version file
       run: echo "${GITHUB_REF#refs/tags/}" > version.txt
 
-    - name: Package Application including the venv
+    - name: Package Application
       run: |
         tar -czvf langiot-package.tar.gz ./backend ./Dockerfile ./README.md ./install.sh ./version.txt ./update.sh ./adhoc_network_manager.py ./configure_adhoc_network.py
 
