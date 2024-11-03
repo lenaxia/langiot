@@ -7,11 +7,13 @@ import sys
 import logging
 import random
 import string
-import os  # Import the os module
+import os
+import time
 
 # Configuration
 ADHOC_NETWORK_INTERFACE = "wlan0"
 ADHOC_NETWORK_IP = "192.168.42.1"
+ADHOC_NETWORK_TIMEOUT = 60  # Timeout in seconds before switching to ad-hoc network (default: 60 seconds)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -79,18 +81,27 @@ def configure_adhoc_network():
 
 # Monitor NetworkManager's signals
 def handle_network_state_change(state):
+    global adhoc_network_timer
+
     if state == NetworkManager.State.CONNECTED:
         logger.info("Connected to a network. Stopping ad-hoc network.")
         stop_adhoc_network()
+        adhoc_network_timer = None
     else:
-        logger.info("Not connected to a network. Starting ad-hoc network.")
-        start_adhoc_network()
+        logger.info("Not connected to a network.")
+        if adhoc_network_timer is None:
+            adhoc_network_timer = time.time()
+        elif time.time() - adhoc_network_timer >= ADHOC_NETWORK_TIMEOUT:
+            logger.info(f"Ad-hoc network timeout ({ADHOC_NETWORK_TIMEOUT} seconds) reached. Starting ad-hoc network.")
+            start_adhoc_network()
+            adhoc_network_timer = None
 
 if __name__ == "__main__":
     # Set up the D-Bus main loop
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
     nm = NetworkManager()
+    adhoc_network_timer = None
 
     # Check the initial network state
     state = nm.state()
