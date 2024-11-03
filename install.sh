@@ -33,7 +33,7 @@ sudo chown $USER:$USER /home/$USER/.xdg
 # Update and install dependencies
 log_message "Updating system and installing dependencies..."
 sudo apt-get remove nodejs-legacy
-sudo apt-get update && sudo apt-get install -y jq git gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev python3-dbus dbus
+sudo apt-get update && sudo apt-get install -y jq git gcc libglib2.0-0 make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev python3-dbus dbus python3-networkmanager
 sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libjpeg-dev python3-dev libasound2-dev ffmpeg python3-pip python3-venv
 curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -  # Adjust "setup_18.x" as needed for your preferred version
 sudo apt-get install -y nodejs
