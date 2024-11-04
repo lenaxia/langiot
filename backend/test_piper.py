@@ -19,7 +19,6 @@ PIPER_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), ".piper", "downloads"
 
 # Set synthesis parameters
 PIPER_SYNTHESIS_ARGS = {
-    "speaker_id": 0,
     "length_scale": 1.0,
     "noise_scale": 0.667,
     "noise_w": 0.8,
