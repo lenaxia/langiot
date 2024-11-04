@@ -7,6 +7,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 from piper import PiperVoice
 from piper.download import ensure_voice_exists, get_voices, find_voice
+import wave  # Import the wave module
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
