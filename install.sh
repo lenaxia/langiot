@@ -332,4 +332,3 @@ log_message "Installation of $APP_NAME completed successfully."
 # Reboot to apply changes
 log_message "Rebooting to apply changes..."
 sudo reboot
-
